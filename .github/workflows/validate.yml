@@ -1,0 +1,71 @@
+name: Validate ETS2 wireless panel
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-check:
+    name: Python bridge syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Compile Python source
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          files=(**/*.py)
+          if (( ${#files[@]} == 0 )); then
+            echo 'No Python files found yet; skipping.'
+          else
+            python -m py_compile "${files[@]}"
+          fi
+
+  arduino-check:
+    name: ESP32-S3 Arduino compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install ESP32 core and libraries
+        shell: bash
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+          arduino-cli lib update-index
+          arduino-cli lib install 'ESP32 BLE Gamepad'
+      - name: Compile ESP32 sketch
+        shell: bash
+        run: |
+          sketch=$(find . -type f -name 'ETS2_WirelessPanel.ino' -print -quit)
+          if [[ -z "$sketch" ]]; then
+            echo 'ETS2_WirelessPanel.ino not found yet; skipping compile until project files are pushed.'
+            exit 0
+          fi
+          sketch_dir=$(dirname "$sketch")
+          arduino-cli compile --fqbn esp32:esp32:esp32s3 "$sketch_dir"
+
+  windows-simhub-check:
+    name: SimHub plugin build availability check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check plugin source and build script exist
+        shell: pwsh
+        run: |
+          $cs = Get-ChildItem -Recurse -Filter ETS2RpmUdpBridge.cs | Select-Object -First 1
+          $ps = Get-ChildItem -Recurse -Filter Build-Install.ps1 | Select-Object -First 1
+          if (-not $cs -or -not $ps) {
+            Write-Host 'SimHub plugin source/build script not present yet; source build cannot run in hosted CI without SimHub SDK DLLs.'
+            exit 0
+          }
+          Write-Host "Found C# source: $($cs.FullName)"
+          Write-Host "Found build script: $($ps.FullName)"
+          Write-Host 'Full plugin compilation requires the SimHub installation DLLs; this job does not claim a successful plugin build.'
