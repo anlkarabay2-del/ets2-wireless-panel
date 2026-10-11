@@ -126,7 +126,7 @@ void setup() {
   BleGamepadConfiguration config;
   config.setAutoReport(false);
   config.setButtonCount(BUTTON_COUNT);
-  config.setAxes(true, true, true, true, false, false, false, false);
+  config.setWhichAxes(true, true, true, true, false, false, false, false);
   bleGamepad.begin(&config);
 
   // Official ESP32-BLE-Gamepad NuSCompatibility.md initialization order.
