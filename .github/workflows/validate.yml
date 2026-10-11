@@ -40,8 +40,10 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
           arduino-cli lib update-index
-          arduino-cli lib install 'ESP32 BLE Gamepad'
-          arduino-cli lib install 'NuS-NimBLE-Serial'
+          arduino-cli lib install 'NimBLE-Arduino'
+          mkdir -p "$HOME/Arduino/libraries"
+          git clone --depth 1 https://github.com/lemmingDev/ESP32-BLE-Gamepad.git "$HOME/Arduino/libraries/ESP32-BLE-Gamepad"
+          git clone --depth 1 https://github.com/afpineda/NuS-NimBLE-Serial.git "$HOME/Arduino/libraries/NuS-NimBLE-Serial"
       - name: Compile ESP32 sketch
         shell: bash
         run: |
