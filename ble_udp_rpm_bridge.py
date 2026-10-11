@@ -8,7 +8,7 @@ import asyncio
 import socket
 import threading
 import time
-from bleak import BleakClient, BleakScanner
+from typing import Optional
 
 DEVICE_NAME_HINTS = ("ETS2 Custom Wheel", "ETS2-NuS")
 NUS_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
@@ -20,28 +20,44 @@ latest_rpm = None
 latest_lock = threading.Lock()
 
 
+def parse_rpm_datagram(data: bytes) -> Optional[int]:
+    """Parse a local UDP payload into RPM, returning None if it is invalid."""
+    text = data.decode("ascii", errors="ignore").strip()
+    if text.lower().startswith("rpm:"):
+        text = text.split(":", 1)[1].strip()
+
+    try:
+        rpm = int(float(text))
+    except (ValueError, OverflowError):
+        # ValueError covers non-numeric text/NaN; OverflowError covers infinity.
+        return None
+
+    if not 0 <= rpm <= 30000:
+        return None
+    return rpm
+
+
 def udp_listener():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_HOST, UDP_PORT))
-    print(f"UDP RPM listener: {UDP_HOST}:{UDP_PORT}")
-    while True:
-        data, _addr = sock.recvfrom(256)
-        text = data.decode("ascii", errors="ignore").strip()
-        if text.lower().startswith("rpm:"):
-            text = text.split(":", 1)[1].strip()
-        try:
-            rpm = int(float(text))
-        except ValueError:
-            print(f"Ignored non-RPM datagram: {text[:60]!r}")
-            continue
-        if not 0 <= rpm <= 30000:
-            continue
-        with latest_lock:
-            global latest_rpm
-            latest_rpm = rpm
+    global latest_rpm
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.bind((UDP_HOST, UDP_PORT))
+        print(f"UDP RPM listener: {UDP_HOST}:{UDP_PORT}")
+        while True:
+            data, _addr = sock.recvfrom(256)
+            rpm = parse_rpm_datagram(data)
+            if rpm is None:
+                text = data.decode("ascii", errors="ignore").strip()
+                print(f"Ignored invalid RPM datagram: {text[:60]!r}")
+                continue
+
+            with latest_lock:
+                latest_rpm = rpm
 
 
 async def find_device():
+    from bleak import BleakScanner
+
     print("Searching BLE for the panel (active scan)...")
     devices = await BleakScanner.discover(timeout=8.0, return_adv=True)
     for _address, pair in devices.items():
@@ -57,6 +73,8 @@ async def find_device():
 
 
 async def main():
+    from bleak import BleakClient
+
     threading.Thread(target=udp_listener, daemon=True).start()
     last_sent = None
     last_send_time = 0.0

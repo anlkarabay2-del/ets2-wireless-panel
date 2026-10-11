@@ -10,47 +10,40 @@ permissions:
 
 jobs:
   python-check:
-    name: Python bridge syntax
+    name: Python bridge tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
-      - name: Compile Python source
-        shell: bash
-        run: |
-          shopt -s globstar nullglob
-          files=(**/*.py)
-          if (( ${#files[@]} == 0 )); then
-            echo 'No Python files found yet; skipping.'
-          else
-            python -m py_compile "${files[@]}"
-          fi
+      - name: Check Python syntax
+        run: python -m py_compile ble_udp_rpm_bridge.py tests/test_rpm_parser.py
+      - name: Run RPM parser tests
+        run: python -m unittest discover -s tests -v
 
   arduino-check:
     name: ESP32-S3 Arduino compile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: arduino/setup-arduino-cli@v2
       - name: Install ESP32 core and libraries
         shell: bash
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          arduino-cli core install esp32:esp32@3.3.12
           arduino-cli lib update-index
-          arduino-cli lib install 'NimBLE-Arduino'
-          mkdir -p "$HOME/Arduino/libraries"
-          git clone --depth 1 https://github.com/lemmingDev/ESP32-BLE-Gamepad.git "$HOME/Arduino/libraries/ESP32-BLE-Gamepad"
-          git clone --depth 1 https://github.com/afpineda/NuS-NimBLE-Serial.git "$HOME/Arduino/libraries/NuS-NimBLE-Serial"
+          arduino-cli lib install 'NimBLE-Arduino@2.5.1'
+          arduino-cli lib install 'ESP32-BLE-Gamepad@0.8.0'
+          arduino-cli lib install 'NuS-NimBLE-Serial@4.2.1'
       - name: Compile ESP32 sketch
         shell: bash
         run: |
           sketch=$(find . -type f -name 'ETS2_WirelessPanel.ino' -print -quit)
           if [[ -z "$sketch" ]]; then
-            echo 'ETS2_WirelessPanel.ino not found yet; skipping compile until project files are pushed.'
-            exit 0
+            echo 'ETS2_WirelessPanel.ino not found; refusing to report a skipped build as success.'
+            exit 1
           fi
           mkdir -p /tmp/ETS2_WirelessPanel
           cp "$sketch" /tmp/ETS2_WirelessPanel/ETS2_WirelessPanel.ino
@@ -60,16 +53,16 @@ jobs:
     name: SimHub plugin build availability check
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check plugin source and build script exist
         shell: pwsh
         run: |
           $cs = Get-ChildItem -Recurse -Filter ETS2RpmUdpBridge.cs | Select-Object -First 1
           $ps = Get-ChildItem -Recurse -Filter Build-Install.ps1 | Select-Object -First 1
           if (-not $cs -or -not $ps) {
-            Write-Host 'SimHub plugin source/build script not present yet; source build cannot run in hosted CI without SimHub SDK DLLs.'
-            exit 0
+            Write-Host 'SimHub plugin source/build script not present; no plugin validation is possible.'
+            exit 1
           }
           Write-Host "Found C# source: $($cs.FullName)"
           Write-Host "Found build script: $($ps.FullName)"
-          Write-Host 'Full plugin compilation requires the SimHub installation DLLs; this job does not claim a successful plugin build.'
+          Write-Host 'Full C# compilation requires the SimHub installation DLLs; this check only verifies the local build inputs.'
