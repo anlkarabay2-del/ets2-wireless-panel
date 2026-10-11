@@ -1,58 +1,68 @@
 # ETS2 Kablosuz ESP32-S3 Paneli — SimHub RPM eklentisi dahil
 
-Bu paket SimHub'dan motor RPM değerini yerel UDP'ye çıkaran C# eklentisini de içerir. Akış:
+Bu depo, SimHub'dan motor RPM bilgisini alıp ESP32-S3 panelinin LED'lerine göndermek için gereken yazılımı içerir.
 
-\`ETS2 -> SimHub -> ETS2RpmUdpBridge.dll -> 127.0.0.1:29100/UDP -> ble_udp_rpm_bridge.py -> BLE NuS -> ESP32-S3\`
+**Veri akışı:** ETS2 → SimHub eklentisi → yerel UDP (127.0.0.1:29100) → Python BLE köprüsü → ESP32-S3 üzerindeki NuS servisi → 9 RPM LED'i.
 
-İnternet bağlantısı çalışma sırasında gerekmez. USB yalnızca ESP32'ye firmware yüklemek / seri hata ayıklamak içindir; panelin oyun kumandası bağlantısı Bluetooth BLE'dir.
+İnternet çalışma sırasında gerekmez. USB, firmware yüklemek ve seri hata ayıklamak içindir; panel Windows'a Bluetooth Low Energy oyun kumandası olarak bağlanır.
 
 ## 1. SimHub eklentisini kur
 
 1. SimHub'ı tamamen kapat.
-2. ZIP dosyasını normal bir klasöre çıkar.
-3. \`SimHubPlugin\\Install-SimHubPlugin.bat\` dosyasını çalıştır. Windows yönetici izni isteyebilir; izin ver.
-4. Derleme başarılı olunca dosya \`C:\\Program Files (x86)\\SimHub\\ETS2RpmUdpBridge.dll\` konumuna kopyalanır (SimHub başka klasördeyse script otomatik arar).
-5. SimHub'ı aç. Eklenti etkinleştirme isterse etkinleştir. Sol menüde **RPM UDP Bridge** sayfası, hedef adresi ve gönderilen paket sayısı görünür.
+2. Depoyu normal bir klasöre indir veya ZIP olarak çıkar.
+3. **SimHubPlugin\Install-SimHubPlugin.bat** dosyasını çalıştır. Windows yönetici izni isterse ver.
+4. Betik, SimHub SDK DLL'lerini bulup C# eklentisini yerel bilgisayarında derler ve DLL'yi SimHub klasörüne kopyalar.
+5. SimHub'ı aç. Eklenti etkinleştirme isterse etkinleştir. Sol menüde **RPM UDP Bridge** sayfası ve gönderilen paket sayısı görünmelidir.
 
-Eklenti Windows'taki .NET Framework C# derleyicisini ve kurulu SimHub DLL'lerini kullanarak kendi bilgisayarında derlenir; harici NuGet paketi indirmez. Derleyici bulunamazsa hata mesajı verir ve DLL kurmaz. GitHub Actions, SimHub DLL'lerine erişemediği için bu eklentinin gerçek C# derlemesini doğrulamıyor; ESP32 ve Python kontrollerinin yeşil olması C# eklentisinin fiziksel SimHub kurulumunda test edildiği anlamına gelmez.
+Derleme için Windows .NET Framework C# derleyicisi ve kurulu SimHub DLL'leri gerekir. GitHub Actions bu dosyalara erişemediğinden **C# eklentisinin gerçek derlemesini doğrulamıyor**; yalnızca kaynak ve derleme betiğinin varlığını kontrol ediyor. ESP32 ve Python kontrollerinin yeşil olması fiziksel SimHub kurulumunun test edildiği anlamına gelmez.
 
-Eklentiyi kaldırmak için SimHub'ı kapatıp \`SimHubPlugin\\Uninstall-SimHubPlugin.ps1\` dosyasını çalıştır. Scriptin oluşturduğu yedek DLL'lere dokunmaz.
+Eklentiyi kaldırmak için SimHub'ı kapatıp **SimHubPlugin\Uninstall-SimHubPlugin.ps1** betiğini çalıştır. Betiğin oluşturduğu yedek DLL dosyalarını silmez.
 
-## 2. ESP32 BLE köprüsünü çalıştır
+## 2. Python BLE köprüsünü çalıştır
 
-PowerShell'de proje klasöründe:
+PowerShell'de depo klasörüne girip şunları çalıştır:
 
-\`\`\`powershell
+~~~powershell
 py -m pip install -r requirements.txt
-py .\\ble_udp_rpm_bridge.py
-\`\`\`
+py .\ble_udp_rpm_bridge.py
+~~~
 
-Köprü \`127.0.0.1:29100\` adresinde dinler. SimHub eklentisi 50 ms aralıkla \`RPM:1420\` biçiminde yerel UDP paketi gönderir. Python köprüsü, BLE NuS bağlantısı kurulunca RPM'yi ESP32'ye yollar. RPM paket ayrıştırıcısı için otomatik testler \`python -m unittest discover -s tests -v\` komutuyla çalıştırılabilir.
+Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir RPM değerini gönderir. Python köprüsü Bluetooth üzerinden paneli bulur, NuS RX karakteristiğine bağlanır ve RPM satırlarını iletir.
 
-## 3. ESP32 firmware'i
+RPM ayrıştırma testlerini çalıştırmak için:
 
-\`ETS2_WirelessPanel.ino\`, BLE Gamepad koduna NuS alıcısını ekleyen firmware'dir. Arduino IDE'de ESP32-S3 DevKitC-1 kartının uygun seçeneğiyle aç.
+~~~powershell
+py -m unittest discover -s tests -v
+~~~
 
-CI derlemesinde kullanılan sürümler:
+## 3. ESP32-S3 firmware'i
 
-- \`ESP32-BLE-Gamepad 0.8.0\`
-- \`NimBLE-Arduino 2.5.1\`
-- \`NuS-NimBLE-Serial 4.2.1\`
-- ESP32 Arduino core \`3.3.12\`
+**ETS2_WirelessPanel.ino**, ESP32-S3'ü Bluetooth oyun kumandası olarak çalıştırır ve aynı BLE sunucusuna NuS seri servisini ekler.
 
-GitHub Actions, bu sürüm kümesiyle firmware derlemesini başarıyla tamamladı. Bu, fiziksel kartta Bluetooth eşleştirmesinin veya LED kablolamasının denendiği anlamına gelmez.
+Firmware'in GitHub Actions derlemesinde doğrulanan bağımlılık sürümleri:
 
-Mevcut aday pin dizileri kod içinde korunmuştur: 14 buton \`{6..18,21}\`, dört joystick ekseni \`{1,2,3,4}\`, dokuz LED \`{5,38,39,40,41,42,47,48,33}\`.
+- ESP32 Arduino core: **3.3.12**
+- ESP32-BLE-Gamepad: **0.8.0**
+- NimBLE-Arduino: **2.5.1**
+- NuS-NimBLE-Serial: **4.2.1**
 
-**Kablolamadan önce pinleri kesinleştir:** GPIO3 ESP32-S3 açılış/strapping davranışı açısından risklidir. GPIO33 ve GPIO48'in kullanılabilirliği ile kartın dahili RGB LED bağlantısı, DevKitC-1 üzerindeki modül ve kart revizyonuna bağlıdır. Tekli LED'lerin her biri için seri 220–330 Ω direnç kullan. 12 V LED şeridini ESP32 GPIO'suna doğrudan bağlama.
+Firmware, BLE üzerinden 14 dijital buton ve 4 analog joystick ekseni gönderir. NuS üzerinden aldığı geçerli RPM satırlarına göre 9 LED'i kademeli yakar. Bu işlevlerin fiziksel kartta ve oyunda çalıştığı henüz doğrulanmış değildir.
+
+Mevcut pin eşlemesi:
+
+- Butonlar: GPIO 6–18 ve GPIO 21 (toplam 14)
+- Joystick eksenleri: GPIO 1, 2, 3, 4
+- RPM LED'leri: GPIO 5, 38, 39, 40, 41, 42, 47, 48, 33
+
+**Kablolamadan önce kartın gerçek pinlerini doğrula.** ESP32-S3'te GPIO3 açılış/strapping işleviyle de ilişkilidir; joystick devresinin bu pini reset sırasında uygunsuz seviyeye çekmediğinden emin ol. GPIO33 ve GPIO48'in kullanılabilirliği kartın tam revizyonuna bağlı olabilir. Her ayrı LED'e seri akım sınırlama direnci koy (genellikle 220–330 Ω, LED türüne göre doğrula). **12 V LED şeridini doğrudan ESP32 GPIO'suna bağlama.**
 
 ## 4. Hızlı kontrol
 
-- SimHub eklenti ekranında \`Packets sent\` sürekli artıyorsa SimHub -> UDP kısmı çalışıyor.
-- Python penceresinde \`UDP RPM listener: 127.0.0.1:29100\` görünmeli.
-- Python, BLE panelini bulup bağlandığında \`BLE connected\` yazar.
-- Eklentinin paket sayısı artıyor ama RPM LED'leri yanmıyorsa sorun UDP kaynak tarafında değil; NuS BLE keşfi/bağlantısı veya ESP32 firmware tarafında aranmalı.
+- SimHub eklentisindeki paket sayısı artıyorsa SimHub → UDP gönderimi gerçekleşiyordur.
+- Python penceresinde UDP dinleme adresi gösterilmelidir.
+- Panel bulunduğunda Python penceresinde BLE cihaz adı ve bağlantı durumu görünmelidir.
+- Paket sayısı artarken LED'ler yanmıyorsa önce NuS BLE bağlantısını, doğru karakteristiği ve ESP32 kablolamasını kontrol et.
 
-## Kaynak notları
+## Test sınırı
 
-Eklenti, SimHub'ın \`IPlugin\`, \`IDataPlugin\` ve \`IWPFSettingsV2\` SDK arayüzlerini kullanır. Referanslar: [SimHub Plugin SDK rehberi](https://github.com/SHWotever/SimHub/wiki/Plugin-and-extensions-SDKs), [SimHub SDK örnek projesi](https://github.com/blekenbleu/SimHubPluginSdk).
+GitHub Actions'ta son başarılı çalışmada Python testleri ve ESP32-S3 firmware derlemesi geçti. Bu otomatik kontroller donanım testinin yerine geçmez. SimHub eklentisinin C# derlemesi, Windows'taki yerel SimHub DLL'leriyle ayrıca doğrulanmalıdır.
