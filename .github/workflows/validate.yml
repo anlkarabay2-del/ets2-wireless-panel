@@ -41,6 +41,7 @@ jobs:
           arduino-cli core install esp32:esp32
           arduino-cli lib update-index
           arduino-cli lib install 'ESP32 BLE Gamepad'
+          arduino-cli lib install 'NuS-NimBLE-Serial'
       - name: Compile ESP32 sketch
         shell: bash
         run: |
@@ -49,8 +50,9 @@ jobs:
             echo 'ETS2_WirelessPanel.ino not found yet; skipping compile until project files are pushed.'
             exit 0
           fi
-          sketch_dir=$(dirname "$sketch")
-          arduino-cli compile --fqbn esp32:esp32:esp32s3 "$sketch_dir"
+          mkdir -p /tmp/ETS2_WirelessPanel
+          cp "$sketch" /tmp/ETS2_WirelessPanel/ETS2_WirelessPanel.ino
+          arduino-cli compile --fqbn esp32:esp32:esp32s3 /tmp/ETS2_WirelessPanel
 
   windows-simhub-check:
     name: SimHub plugin build availability check
