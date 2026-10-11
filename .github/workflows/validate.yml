@@ -54,6 +54,22 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Check PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'SimHubPlugin/Build-Install.ps1',
+            'SimHubPlugin/Uninstall-SimHubPlugin.ps1'
+          )
+          foreach ($path in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $path), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              throw ("PowerShell syntax error in {0}: {1}" -f $path, ($errors | Out-String))
+            }
+            Write-Host "PowerShell syntax OK: $path"
+          }
       - name: Check plugin source and build script exist
         shell: pwsh
         run: |

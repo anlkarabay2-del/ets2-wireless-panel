@@ -3,7 +3,6 @@
 #include <NuSerial.hpp>
 #include <NimBLEDevice.h>
 
-// Based on the user's existing ESP32-BLE-Gamepad sketch.
 // BLE HID = buttons/joysticks. BLE NuS = incoming RPM text from the PC bridge.
 
 static const uint8_t BUTTON_COUNT = 14;
@@ -14,7 +13,6 @@ static const uint8_t JOYSTICK_PINS[4] = {1, 2, 3, 4};
 static const uint8_t LED_COUNT = 9;
 static const uint8_t LED_PINS[LED_COUNT] = {5, 38, 39, 40, 41, 42, 47, 48, 33};
 
-// Fourth argument delays advertising so NuS can be registered on the same server.
 BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, true);
 
 static bool stableButton[BUTTON_COUNT] = {false};
@@ -23,16 +21,18 @@ static uint32_t rawChangedAt[BUTTON_COUNT] = {0};
 static int joystickValues[4] = {2048, 2048, 2048, 2048};
 static char nusBuffer[32];
 static size_t nusLength = 0;
+static bool discardingNusLine = false;
 static long currentRpm = 0;
+static uint32_t lastValidRpmAt = 0;
 static uint32_t lastInputRead = 0;
 static uint32_t lastReport = 0;
 static const uint32_t DEBOUNCE_MS = 8;
 static const uint32_t REPORT_MS = 10;
+static const uint32_t RPM_TIMEOUT_MS = 1000;
 static const char *NUS_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 
 static int16_t axisFromAdc(int raw) {
   raw = constrain(raw, 0, 4095);
-  // Small center deadzone to reduce joystick drift.
   int32_t value = map(raw, 0, 4095, -32767, 32767);
   if (abs(value) < 1800) value = 0;
   return (int16_t)value;
@@ -40,7 +40,7 @@ static int16_t axisFromAdc(int raw) {
 
 void updateRpmLeds(long rpm) {
   rpm = constrain(rpm, 0L, 3500L);
-  int active = (int)((rpm * LED_COUNT + 3499) / 3500); // turn on progressively
+  int active = (int)((rpm * LED_COUNT + 3499) / 3500);
   active = constrain(active, 0, LED_COUNT);
   for (uint8_t i = 0; i < LED_COUNT; i++) {
     digitalWrite(LED_PINS[i], i < active ? HIGH : LOW);
@@ -60,7 +60,7 @@ void readInputs() {
     }
   }
 
-  // Average a few reads to soften ADC noise without adding long blocking delays.
+  // Average a few ADC reads without adding blocking delays.
   for (uint8_t i = 0; i < 4; i++) {
     uint32_t sum = 0;
     for (uint8_t n = 0; n < 4; n++) sum += analogRead(JOYSTICK_PINS[i]);
@@ -69,7 +69,6 @@ void readInputs() {
 }
 
 void handleRpmLine(char *line) {
-  // Accept either "1234" or "RPM:1234" from the PC bridge.
   char *value = line;
   if (strncmp(value, "RPM:", 4) == 0 || strncmp(value, "rpm:", 4) == 0) value += 4;
   while (*value == ' ' || *value == '\t') value++;
@@ -78,6 +77,7 @@ void handleRpmLine(char *line) {
   while (endPtr && (*endPtr == ' ' || *endPtr == '\t')) endPtr++;
   if (endPtr != value && endPtr && *endPtr == '\0' && rpm >= 0 && rpm <= 30000) {
     currentRpm = rpm;
+    lastValidRpmAt = millis();
     updateRpmLeds(currentRpm);
     Serial.printf("RPM_OK:%ld\n", currentRpm);
   } else {
@@ -92,14 +92,19 @@ void pollNuS() {
     char c = (char)incoming;
     if (c == '\r') continue;
     if (c == '\n') {
-      nusBuffer[nusLength] = '\0';
-      if (nusLength > 0) handleRpmLine(nusBuffer);
+      if (!discardingNusLine) {
+        nusBuffer[nusLength] = '\0';
+        if (nusLength > 0) handleRpmLine(nusBuffer);
+      }
       nusLength = 0;
-    } else if (c >= 32 && c <= 126) {
+      discardingNusLine = false;
+    } else if (c >= 32 && c <= 126 && !discardingNusLine) {
       if (nusLength < sizeof(nusBuffer) - 1) {
         nusBuffer[nusLength++] = c;
       } else {
-        nusLength = 0; // discard overlong line
+        // Discard the entire overlong line; never parse its trailing fragment.
+        nusLength = 0;
+        discardingNusLine = true;
       }
     }
   }
@@ -129,7 +134,7 @@ void setup() {
   config.setWhichAxes(true, true, true, true, false, false, false, false);
   bleGamepad.begin(&config);
 
-  // Official ESP32-BLE-Gamepad NuSCompatibility.md initialization order.
+  // Register NuS after NimBLE is initialized, then advertise both services.
   while (NimBLEDevice::getServer() == nullptr) delay(10);
   NuSerial.start(false);
   NimBLEAdvertising *advertising = NimBLEDevice::getServer()->getAdvertising();
@@ -137,7 +142,6 @@ void setup() {
   if (!advertising->addServiceUUID(NUS_UUID)) {
     Serial.println("WARN: NuS UUID did not fit scan response; connect then discover services.");
   }
-  // Short scan-response alias leaves room for the 128-bit NuS service UUID.
   if (!advertising->setName("ETS2-NuS")) {
     Serial.println("WARN: short NuS scan name did not fit scan response.");
   }
@@ -155,6 +159,14 @@ void loop() {
   }
 
   pollNuS();
+
+  // Clear the RPM bar if the PC bridge/SimHub stops sending telemetry.
+  uint32_t rpmNow = millis();
+  if (currentRpm != 0 && (uint32_t)(rpmNow - lastValidRpmAt) >= RPM_TIMEOUT_MS) {
+    currentRpm = 0;
+    updateRpmLeds(0);
+    Serial.println("RPM_STALE:0");
+  }
 
   if (bleGamepad.isConnected() && (uint32_t)(now - lastReport) >= REPORT_MS) {
     lastReport = now;

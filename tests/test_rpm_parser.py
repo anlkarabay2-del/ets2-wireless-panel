@@ -1,6 +1,6 @@
 import unittest
 
-from ble_udp_rpm_bridge import parse_rpm_datagram
+from ble_udp_rpm_bridge import effective_rpm, parse_rpm_datagram
 
 
 class ParseRpmDatagramTests(unittest.TestCase):
@@ -37,6 +37,20 @@ class ParseRpmDatagramTests(unittest.TestCase):
         for payload in invalid_payloads:
             with self.subTest(payload=payload):
                 self.assertIsNone(parse_rpm_datagram(payload))
+
+
+class EffectiveRpmTests(unittest.TestCase):
+    def test_no_sample_yet_returns_none(self):
+        self.assertIsNone(effective_rpm(None, None, 100.0))
+
+    def test_fresh_sample_is_preserved(self):
+        self.assertEqual(effective_rpm(1420, 99.5, 100.0), 1420)
+
+    def test_stale_sample_falls_back_to_zero(self):
+        self.assertEqual(effective_rpm(1420, 98.9, 100.0), 0)
+
+    def test_sample_at_timeout_boundary_is_still_fresh(self):
+        self.assertEqual(effective_rpm(1420, 99.0, 100.0), 1420)
 
 
 if __name__ == "__main__":
