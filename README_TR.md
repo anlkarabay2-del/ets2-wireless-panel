@@ -54,7 +54,7 @@ Mevcut pin eşlemesi:
 - Joystick eksenleri: GPIO 1, 2, 3, 4
 - RPM LED'leri: GPIO 5, 38, 39, 40, 41, 42, 47, 48, 33
 
-**Kablolamadan önce kartın gerçek pinlerini doğrula.** ESP32-S3'te GPIO3 açılış/strapping işleviyle de ilişkilidir; joystick devresinin bu pini reset sırasında uygunsuz seviyeye çekmediğinden emin ol. GPIO33 ve GPIO48'in kullanılabilirliği kartın tam revizyonuna bağlı olabilir. Her ayrı LED'e seri akım sınırlama direnci koy (genellikle 220–330 Ω, LED türüne göre doğrula). **12 V LED şeridini doğrudan ESP32 GPIO'suna bağlama.**
+**Kablolamadan önce kartın gerçek pinlerini doğrula.** GPIO3 strapping pinidir; joystick devresinin reset sırasında uygunsuz seviyeye çekmediğinden emin ol. Resmî ESP32-S3-DevKitC-1 v1.0 kartında yerleşik RGB LED GPIO48'e, v1.1'de GPIO38'e bağlıdır; pin listemiz bu iki pini de ayrı LED çıkışı olarak kullandığından, kartında hangisi yerleşik RGB LED ise o çıkış çakışır ve pin eşlemesi kart revizyonuna göre değiştirilmelidir. Octal SPI flash/PSRAM içeren bazı modüllerde GPIO35–37 harici kullanım için uygun değildir. Her ayrı LED'e seri akım sınırlama direnci koy (genellikle 220–330 Ω, LED türüne göre doğrula). **12 V LED şeridini doğrudan ESP32 GPIO'suna bağlama.**
 
 ## 4. Hızlı kontrol
 
