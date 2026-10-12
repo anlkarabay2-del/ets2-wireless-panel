@@ -25,8 +25,11 @@ static bool discardingNusLine = false;
 static long currentRpm = 0;
 static uint32_t lastValidRpmAt = 0;
 static uint32_t lastInputRead = 0;
+static uint32_t lastAnalogRead = 0;
 static uint32_t lastReport = 0;
 static const uint32_t DEBOUNCE_MS = 8;
+static const uint32_t INPUT_SCAN_MS = 2;
+static const uint32_t ANALOG_SCAN_MS = 5;
 static const uint32_t REPORT_MS = 10;
 static const uint32_t RPM_TIMEOUT_MS = 1000;
 static const char *NUS_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
@@ -47,8 +50,7 @@ void updateRpmLeds(long rpm) {
   }
 }
 
-void readInputs() {
-  uint32_t now = millis();
+void readButtons(uint32_t now) {
   for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
     bool raw = (digitalRead(BUTTON_PINS[i]) == LOW);
     if (raw != lastRawButton[i]) {
@@ -59,8 +61,12 @@ void readInputs() {
       stableButton[i] = raw;
     }
   }
+}
 
-  // Average a few ADC reads without adding blocking delays.
+void readJoysticks() {
+  // Four-sample averaging at 200 Hz reduces ADC noise while keeping the
+  // 100 Hz BLE report rate smooth. Sampling separately avoids doing 16 ADC
+  // conversions during every 2 ms button scan.
   for (uint8_t i = 0; i < 4; i++) {
     uint32_t sum = 0;
     for (uint8_t n = 0; n < 4; n++) sum += analogRead(JOYSTICK_PINS[i]);
@@ -153,9 +159,13 @@ void setup() {
 
 void loop() {
   uint32_t now = millis();
-  if ((uint32_t)(now - lastInputRead) >= 2) {
+  if ((uint32_t)(now - lastInputRead) >= INPUT_SCAN_MS) {
     lastInputRead = now;
-    readInputs();
+    readButtons(now);
+  }
+  if ((uint32_t)(now - lastAnalogRead) >= ANALOG_SCAN_MS) {
+    lastAnalogRead = now;
+    readJoysticks();
   }
 
   pollNuS();
