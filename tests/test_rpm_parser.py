@@ -17,6 +17,24 @@ class ParseRpmDatagramTests(unittest.TestCase):
     def test_preserves_legacy_numeric_decimal_behavior(self):
         self.assertEqual(parse_rpm_datagram(b"1420.9"), 1420)
 
+    def test_accepts_native_json_telemetry(self):
+        self.assertEqual(parse_rpm_datagram(b'{"speed": 12.3, "rpm": 550.5, "gear": 1}'), 550)
+        self.assertEqual(parse_rpm_datagram(b'{ "rpm": 0 }'), 0)
+
+    def test_rejects_json_without_rpm_or_with_invalid_rpm(self):
+        invalid_payloads = (
+            b'{"speed": 10}',
+            b'{"rpm": "not-a-number"}',
+            b'{"rpm": NaN}',
+            b'{"rpm": -1}',
+            b'{"rpm": 30001}',
+            b'{"rpm": true}',
+            b'{"rpm":',
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                self.assertIsNone(parse_rpm_datagram(payload))
+
     def test_accepts_range_boundaries(self):
         self.assertEqual(parse_rpm_datagram(b"0"), 0)
         self.assertEqual(parse_rpm_datagram(b"30000"), 30000)
