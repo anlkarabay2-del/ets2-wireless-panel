@@ -1,10 +1,13 @@
-"""Local UDP -> BLE NuS RPM bridge for ETS2 ESP32 panel.
+"""Local UDP -> BLE NuS RPM bridge for the ETS2 ESP32 panel.
 
-Listens only on 127.0.0.1:29100. A local telemetry source sends an integer RPM
-value (e.g. b"1420") or b"RPM:1420" as a UDP datagram. The script forwards it
-over the ESP32's BLE Nordic UART Service.
+Accepts a plain RPM integer (e.g. b"1420"), b"RPM:1420", or JSON telemetry
+containing an "rpm" field. Default listener: 127.0.0.1:29100.
+Set ETS2_UDP_PORT=49001 to use the native ets2-telemetry-udp plugin.
 """
 import asyncio
+import json
+import math
+import os
 import socket
 import threading
 import time
@@ -14,7 +17,7 @@ DEVICE_NAME_HINTS = ("ETS2 Custom Wheel", "ETS2-NuS")
 NUS_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 NUS_RX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
 UDP_HOST = "127.0.0.1"
-UDP_PORT = 29100
+UDP_PORT = int(os.environ.get("ETS2_UDP_PORT", "29100"))
 UDP_STALE_SECONDS = 1.0
 
 latest_rpm: Optional[int] = None
@@ -24,20 +27,37 @@ udp_ready = threading.Event()
 udp_start_error: Optional[OSError] = None
 
 
+def _validated_rpm(value) -> Optional[int]:
+    """Convert a numeric RPM value to an integer if it is in range."""
+    if isinstance(value, bool):
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(numeric) or not 0 <= numeric <= 30000:
+        return None
+    return int(numeric)
+
+
 def parse_rpm_datagram(data: bytes) -> Optional[int]:
-    """Parse a local UDP payload into RPM, returning None if it is invalid."""
-    text = data.decode("ascii", errors="ignore").strip()
+    """Parse plain RPM, RPM: prefix, or JSON telemetry into an RPM integer."""
+    text = data.decode("utf-8", errors="ignore").strip()
+    if not text:
+        return None
+
+    if text.startswith("{"):
+        try:
+            payload = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(payload, dict) or "rpm" not in payload:
+            return None
+        return _validated_rpm(payload["rpm"])
+
     if text.lower().startswith("rpm:"):
         text = text.split(":", 1)[1].strip()
-
-    try:
-        rpm = int(float(text))
-    except (ValueError, OverflowError):
-        return None
-
-    if not 0 <= rpm <= 30000:
-        return None
-    return rpm
+    return _validated_rpm(text)
 
 
 def effective_rpm(rpm: Optional[int], received_at: Optional[float], now: float) -> Optional[int]:
@@ -67,11 +87,11 @@ def udp_listener():
     with sock:
         print(f"UDP RPM listener: {UDP_HOST}:{UDP_PORT}")
         while True:
-            data, _addr = sock.recvfrom(256)
+            data, _addr = sock.recvfrom(2048)
             rpm = parse_rpm_datagram(data)
             if rpm is None:
-                text = data.decode("ascii", errors="ignore").strip()
-                print(f"Ignored invalid RPM datagram: {text[:60]!r}")
+                text = data.decode("utf-8", errors="replace").strip()
+                print(f"Ignored invalid RPM datagram: {text[:100]!r}")
                 continue
 
             with latest_lock:
