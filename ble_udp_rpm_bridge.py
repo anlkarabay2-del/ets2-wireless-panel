@@ -69,6 +69,21 @@ def is_panel_advertisement(device_name, local_name, service_uuids) -> bool:
     )
 
 
+def write_response_mode(characteristic_properties) -> Optional[bool]:
+    """Choose a GATT write mode supported by a BLE characteristic.
+
+    NuS-NimBLE-Serial 4.2.1 exposes its RX characteristic as 'write' (with
+    response), not 'write-without-response'. Prefer response writes when both
+    modes are available, and return None if neither mode is supported.
+    """
+    properties = {str(value).lower() for value in (characteristic_properties or ())}
+    if "write" in properties:
+        return True
+    if "write-without-response" in properties:
+        return False
+    return None
+
+
 def udp_listener():
     global latest_rpm, latest_rpm_received_at, udp_start_error
 
@@ -142,11 +157,30 @@ async def main():
         try:
             async with BleakClient(device, timeout=20.0) as client:
                 print("BLE connected. Waiting for local RPM datagrams...")
-                chars = {c.uuid.lower() for s in client.services for c in s.characteristics}
-                if NUS_RX_UUID not in chars:
+                rx_characteristic = next(
+                    (
+                        characteristic
+                        for service in client.services
+                        for characteristic in service.characteristics
+                        if characteristic.uuid.lower() == NUS_RX_UUID
+                    ),
+                    None,
+                )
+                if rx_characteristic is None:
                     print("NUS RX characteristic not visible. Remove/re-pair the device in Windows and retry.")
                     await asyncio.sleep(3)
                     continue
+
+                response_mode = write_response_mode(rx_characteristic.properties)
+                if response_mode is None:
+                    print("NUS RX characteristic supports neither write mode; retrying BLE discovery.")
+                    await asyncio.sleep(3)
+                    continue
+
+                print(
+                    "NuS RX write mode: "
+                    + ("with response" if response_mode else "without response")
+                )
                 while client.is_connected:
                     with latest_lock:
                         rpm = latest_rpm
@@ -154,7 +188,11 @@ async def main():
                     now = time.monotonic()
                     rpm = effective_rpm(rpm, received_at, now)
                     if rpm is not None and (rpm != last_sent or now - last_send_time >= 0.20):
-                        await client.write_gatt_char(NUS_RX_UUID, f"{rpm}\n".encode("ascii"), response=False)
+                        await client.write_gatt_char(
+                            rx_characteristic,
+                            f"{rpm}\n".encode("ascii"),
+                            response=response_mode,
+                        )
                         last_sent = rpm
                         last_send_time = now
                     await asyncio.sleep(0.02)
