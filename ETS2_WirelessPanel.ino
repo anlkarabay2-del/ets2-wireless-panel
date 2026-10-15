@@ -25,6 +25,10 @@ static int joystickValues[4] = {2048, 2048, 2048, 2048};
 // a stick held off-center during startup must not become the new neutral.
 // Enable DEBUG_JOYSTICK_ADC to measure resting values in the Serial Monitor.
 static const int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
+// Optional measured endpoint calibration; defaults retain the full 12-bit ADC range.
+// Record the resting center and both physical endpoints for each axis if needed.
+static const int JOYSTICK_MIN_ADC[4] = {0, 0, 0, 0};
+static const int JOYSTICK_MAX_ADC[4] = {4095, 4095, 4095, 4095};
 // Set an entry true if that physical axis moves in the wrong direction in Windows.
 static const bool JOYSTICK_INVERTED[4] = {false, false, false, false};
 // Temporarily set true to print averaged ADC readings every 250 ms.
@@ -53,10 +57,13 @@ static const uint32_t RPM_TIMEOUT_MS = 1000;
 static const char *NUS_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 
 static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
-  raw = constrain(raw, 0, 4095);
   if (axisIndex >= 4) return 0;
 
-  const int center = constrain(JOYSTICK_CENTER_ADC[axisIndex], 1, 4094);
+  const int axisMin = constrain(JOYSTICK_MIN_ADC[axisIndex], 0, 4094);
+  const int axisMax = constrain(JOYSTICK_MAX_ADC[axisIndex], axisMin + 1, 4095);
+  const int center = constrain(JOYSTICK_CENTER_ADC[axisIndex], axisMin + 1, axisMax - 1);
+  raw = constrain(raw, axisMin, axisMax);
+
   const int delta = raw - center;
   const int distance = abs(delta);
   const int activate = JOYSTICK_ACTIVATE_COUNTS[axisIndex];
@@ -74,7 +81,7 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
   }
 
   const int direction = (delta > 0) ? 1 : -1;
-  const int available = (direction > 0 ? 4095 - center : center) - activate;
+  const int available = (direction > 0 ? axisMax - center : center - axisMin) - activate;
   if (available <= 0) {
     joystickAxisActive[axisIndex] = false;
     return 0;
@@ -84,8 +91,7 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
   if (distance > activate) {
     magnitude = ((int32_t)(distance - activate) * 32767L) / available;
   } else {
-    // Continue a one-ADC-count-sized output smoothly through the release band.
-    // This makes the value at 'activate' match the first step above it.
+    // Fade through the release band instead of snapping abruptly to zero.
     const int32_t oneCount = max(1L, 32767L / available);
     magnitude = ((int32_t)(distance - release) * oneCount)
                 / (activate - release);
