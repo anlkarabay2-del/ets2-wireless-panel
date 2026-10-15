@@ -50,7 +50,7 @@ This is the **firmware pin assignment**, not yet a verified physical-board layou
 - **Calibrate joystick centers:** in `ETS2_WirelessPanel.ino`, temporarily set `DEBUG_JOYSTICK_ADC = true`, upload, then open the Serial Monitor at **115200 baud**. The firmware prints `JOY_ADC:value1,value2,value3,value4` every 250 ms. With each stick released at its normal center, record the four stable readings and use them in `JOYSTICK_CENTER_ADC`; set `DEBUG_JOYSTICK_ADC = false` afterward.
 - **Reverse an axis:** if moving one direction makes Windows show the opposite direction, set the matching entry in `JOYSTICK_INVERTED` to `true`. The order is GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz.
 - HID axis mapping is X/Y for the menu stick and Z/Rz for the camera stick. In the ESP32 BLE Gamepad library's documented Windows mapping, Z is right-stick X and Rz is right-stick Y; Rx maps to a trigger, so it is intentionally not used for the camera stick.
-- RPM LEDs are currently scaled in firmware to a 0–3500 RPM range; confirm the desired ETS2 truck/vehicle behavior before final calibration.
+- RPM LEDs use a 0–3500 internal bar scale. The SimHub plugin sends current RPM plus vehicle MaxRpm; the Python bridge normalizes that ratio to the scale so the ninth LED reaches the top of the bar near each vehicle's redline. Legacy single-number packets keep absolute-RPM behavior.
 - The Python bridge checks both BLE names and the advertised NuS service UUID. It also selects the GATT write mode from the RX characteristic's actual properties; NuS-NimBLE-Serial 4.2.1 exposes RX as a write-with-response characteristic.
 
 ## To verify when the parts arrive
