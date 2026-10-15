@@ -59,6 +59,10 @@ class ParseRpmDatagramTests(unittest.TestCase):
                 self.assertIsNone(parse_rpm_datagram(payload))
 
 
+    def test_rejects_non_ascii_bytes_inside_numeric_payload(self):
+        self.assertIsNone(parse_rpm_datagram(b"1\xff420"))
+
+
 class EffectiveRpmTests(unittest.TestCase):
     def test_no_sample_yet_returns_none(self):
         self.assertIsNone(effective_rpm(None, None, 100.0))
