@@ -49,6 +49,26 @@ def effective_rpm(rpm: Optional[int], received_at: Optional[float], now: float) 
     return rpm
 
 
+def is_panel_advertisement(device_name, local_name, service_uuids) -> bool:
+    """Match either observed BLE name or the NuS service UUID.
+
+    Windows may return a cached device.name that differs from the local name
+    in the current scan response. Check both rather than letting the cached
+    name hide a valid adv.local_name match.
+    """
+    advertised_uuids = {str(uuid).lower() for uuid in (service_uuids or ())}
+    if NUS_SERVICE_UUID in advertised_uuids:
+        return True
+
+    names = (device_name or "", local_name or "")
+    return any(
+        hint.lower() in name.lower()
+        for hint in DEVICE_NAME_HINTS
+        for name in names
+        if name
+    )
+
+
 def udp_listener():
     global latest_rpm, latest_rpm_received_at, udp_start_error
 
@@ -91,13 +111,12 @@ async def find_device():
 
     for _address, pair in devices.items():
         device, adv = pair
-        uuids = [u.lower() for u in (adv.service_uuids or [])]
-        name = device.name or adv.local_name or ""
-        if NUS_SERVICE_UUID in uuids or any(hint.lower() in name.lower() for hint in DEVICE_NAME_HINTS):
+        if is_panel_advertisement(device.name, adv.local_name, adv.service_uuids):
+            name = adv.local_name or device.name or ""
             print(f"Found: {name or '(unnamed)'} [{device.address}]")
             return device
     print("Panel not found. Check that firmware is running and Windows Bluetooth is enabled.")
-    print("If it was paired before a firmware change, remove it in Windows Bluetooth settings and pair again.")
+    print("If it was paired before a firmware change, remove it in Windows Bluetooth settings and retry.")
     return None
 
 
