@@ -27,7 +27,7 @@ py -m pip install -r requirements.txt
 py .\ble_udp_rpm_bridge.py
 ~~~
 
-Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir RPM değerini gönderir. Python köprüsü Bluetooth üzerinden paneli bulur, NuS RX karakteristiğine bağlanır ve RPM satırlarını iletir.
+Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir RPM değerini gönderir. Python köprüsü paneli BLE reklamındaki NuS servis UUID'si veya tanınan cihaz adıyla bulur, RX karakteristiğinin desteklediği GATT yazma modunu kontrol eder ve RPM satırlarını iletir. NuS-NimBLE-Serial 4.2.1 RX karakteristiği yanıtlı yazmayı (write with response) kullanır.
 
 RPM ayrıştırma testlerini çalıştırmak için:
 
@@ -56,7 +56,19 @@ Mevcut pin eşlemesi:
 
 **Kablolamadan önce kartın gerçek pinlerini doğrula.** GPIO3 strapping pinidir; joystick devresinin reset sırasında uygunsuz seviyeye çekmediğinden emin ol. Resmî ESP32-S3-DevKitC-1 v1.0 kartında yerleşik RGB LED GPIO48'e, v1.1'de GPIO38'e bağlıdır; pin listemiz bu iki pini de ayrı LED çıkışı olarak kullandığından, kartında hangisi yerleşik RGB LED ise o çıkış çakışır ve pin eşlemesi kart revizyonuna göre değiştirilmelidir. Octal SPI flash/PSRAM içeren bazı modüllerde GPIO35–37 harici kullanım için uygun değildir. Her ayrı LED'e seri akım sınırlama direnci koy (genellikle 220–330 Ω, LED türüne göre doğrula). **12 V LED şeridini doğrudan ESP32 GPIO'suna bağlama.**
 
-## 4. Hızlı kontrol
+## 4. Joystick merkezini kalibre et
+
+Varsayılan ADC merkezleri dört eksen için 2048'dir; bunlar henüz fiziksel joystick'lerinde ölçülmüş değerler değildir.
+
+1. ETS2_WirelessPanel.ino dosyasında DEBUG_JOYSTICK_ADC değerini geçici olarak true yap ve firmware'i yükle.
+2. Arduino IDE Seri Monitör'ü **115200 baud** ile aç. Çubuklar bırakılmış ve normal merkez konumundayken JOY_ADC:değer1,değer2,değer3,değer4 satırlarını izle.
+3. Değerler sabitlenince dört sayıyı JOYSTICK_CENTER_ADC dizisine sırayla yaz. Sıra GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz'dir.
+4. Yönlerden biri Windows oyun kumandası ekranında ters görünüyorsa aynı sıradaki JOYSTICK_INVERTED girdisini true yap.
+5. DEBUG_JOYSTICK_ADC değerini false olarak geri alıp son firmware'i yükle.
+
+Başlangıç deadzone değerleri menü eksenlerinde 100/70, kamera eksenlerinde 170/130 ADC sayımıdır (etkinleştirme/bırakma). Kamera joystick'i direksiyon titreşiminden etkilenirse önce gerçek merkez değerlerini ölç; rastgele pin değiştirme veya çok büyük deadzone belirleme.
+
+## 5. Hızlı kontrol
 
 - SimHub eklentisindeki paket sayısı artıyorsa SimHub → UDP gönderimi gerçekleşiyordur.
 - Python penceresinde UDP dinleme adresi gösterilmelidir.
