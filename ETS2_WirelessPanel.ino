@@ -19,6 +19,17 @@ static bool stableButton[BUTTON_COUNT] = {false};
 static bool lastRawButton[BUTTON_COUNT] = {false};
 static uint32_t rawChangedAt[BUTTON_COUNT] = {0};
 static int joystickValues[4] = {2048, 2048, 2048, 2048};
+
+// ADC centers are deliberately explicit rather than auto-calibrated at boot:
+// a stick held off-center during startup must not become the new neutral.
+// Measure each assembled axis and adjust these values if its resting ADC value
+// differs materially from 2048.
+static const int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
+// Hysteresis thresholds in raw ADC counts. Axes 0-1 are the menu stick;
+// axes 2-3 are the camera stick, given a larger noise-rejection band.
+static const int JOYSTICK_ACTIVATE_COUNTS[4] = {100, 100, 170, 170};
+static const int JOYSTICK_RELEASE_COUNTS[4] = {70, 70, 130, 130};
+static bool joystickAxisActive[4] = {false, false, false, false};
 static char nusBuffer[32];
 static size_t nusLength = 0;
 static bool discardingNusLine = false;
@@ -34,11 +45,33 @@ static const uint32_t REPORT_MS = 10;
 static const uint32_t RPM_TIMEOUT_MS = 1000;
 static const char *NUS_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 
-static int16_t axisFromAdc(int raw) {
+static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
   raw = constrain(raw, 0, 4095);
-  int32_t value = map(raw, 0, 4095, -32767, 32767);
-  if (abs(value) < 1800) value = 0;
-  return (int16_t)value;
+  if (axisIndex >= 4) return 0;
+
+  const int center = constrain(JOYSTICK_CENTER_ADC[axisIndex], 1, 4094);
+  const int delta = raw - center;
+  const int distance = abs(delta);
+  const int activate = JOYSTICK_ACTIVATE_COUNTS[axisIndex];
+  const int release = JOYSTICK_RELEASE_COUNTS[axisIndex];
+
+  // Hysteresis prevents noise near the deadzone edge from rapidly toggling
+  // between neutral and active. Camera axes use a wider band than menu axes.
+  if (!joystickAxisActive[axisIndex]) {
+    if (distance <= activate) return 0;
+    joystickAxisActive[axisIndex] = true;
+  } else if (distance <= release) {
+    joystickAxisActive[axisIndex] = false;
+    return 0;
+  }
+
+  const int direction = (delta > 0) ? 1 : -1;
+  const int available = (direction > 0 ? 4095 - center : center) - activate;
+  if (available <= 0) return 0;
+
+  int32_t magnitude = ((int32_t)(distance - activate) * 32767L) / available;
+  magnitude = constrain(magnitude, 0L, 32767L);
+  return (int16_t)(direction * magnitude);
 }
 
 void updateRpmLeds(long rpm) {
@@ -184,9 +217,11 @@ void loop() {
       if (stableButton[i]) bleGamepad.press(i + 1);
       else bleGamepad.release(i + 1);
     }
+    // HID axis order is X/Y (menu stick), then Z/RX (camera stick).
+    // The physical X/Y potentiometer wiring still needs to be confirmed on-device.
     bleGamepad.setAxes(
-      axisFromAdc(joystickValues[0]), axisFromAdc(joystickValues[1]),
-      axisFromAdc(joystickValues[2]), axisFromAdc(joystickValues[3]),
+      axisFromAdc(joystickValues[0], 0), axisFromAdc(joystickValues[1], 1),
+      axisFromAdc(joystickValues[2], 2), axisFromAdc(joystickValues[3], 3),
       0, 0, 0, 0
     );
     bleGamepad.sendReport();
