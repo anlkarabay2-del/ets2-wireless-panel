@@ -11,6 +11,7 @@ static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
 };
 static const uint8_t JOYSTICK_PINS[4] = {1, 2, 3, 4};
 static const uint8_t LED_COUNT = 9;
+static const long LED_BAR_MAX = 3500L;
 static const uint8_t LED_PINS[LED_COUNT] = {5, 38, 39, 40, 41, 42, 47, 48, 33};
 
 BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, true);
@@ -39,7 +40,7 @@ static bool joystickAxisActive[4] = {false, false, false, false};
 static char nusBuffer[32];
 static size_t nusLength = 0;
 static bool discardingNusLine = false;
-static long currentRpm = 0;
+static long currentLedRpm = 0;
 static uint32_t lastValidRpmAt = 0;
 static uint32_t lastInputRead = 0;
 static uint32_t lastAnalogRead = 0;
@@ -96,8 +97,8 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
 }
 
 void updateRpmLeds(long rpm) {
-  rpm = constrain(rpm, 0L, 3500L);
-  int active = (int)((rpm * LED_COUNT + 3499) / 3500);
+  rpm = constrain(rpm, 0L, LED_BAR_MAX);
+  int active = (int)((rpm * LED_COUNT + LED_BAR_MAX - 1) / LED_BAR_MAX);
   active = constrain(active, 0, LED_COUNT);
   for (uint8_t i = 0; i < LED_COUNT; i++) {
     digitalWrite(LED_PINS[i], i < active ? HIGH : LOW);
@@ -136,10 +137,12 @@ void handleRpmLine(char *line) {
   long rpm = strtol(value, &endPtr, 10);
   while (endPtr && (*endPtr == ' ' || *endPtr == '\t')) endPtr++;
   if (endPtr != value && endPtr && *endPtr == '\0' && rpm >= 0 && rpm <= 30000) {
-    currentRpm = rpm;
+    // The BLE bridge normally sends a 0-3500 display-scale value. Clamp here
+    // too so older absolute-RPM payloads remain safe and predictable.
+    currentLedRpm = constrain(rpm, 0L, LED_BAR_MAX);
     lastValidRpmAt = millis();
-    updateRpmLeds(currentRpm);
-    Serial.printf("RPM_OK:%ld\n", currentRpm);
+    updateRpmLeds(currentLedRpm);
+    Serial.printf("RPM_BAR_OK:%ld\n", currentLedRpm);
   } else {
     Serial.printf("NUS_ERR_BAD_RPM:%s\n", line);
   }
@@ -234,10 +237,10 @@ void loop() {
 
   // Clear the RPM bar if the PC bridge/SimHub stops sending telemetry.
   uint32_t rpmNow = millis();
-  if (currentRpm != 0 && (uint32_t)(rpmNow - lastValidRpmAt) >= RPM_TIMEOUT_MS) {
-    currentRpm = 0;
+  if (currentLedRpm != 0 && (uint32_t)(rpmNow - lastValidRpmAt) >= RPM_TIMEOUT_MS) {
+    currentLedRpm = 0;
     updateRpmLeds(0);
-    Serial.println("RPM_STALE:0");
+    Serial.println("RPM_BAR_STALE:0");
   }
 
   if (bleGamepad.isConnected() && (uint32_t)(now - lastReport) >= REPORT_MS) {
