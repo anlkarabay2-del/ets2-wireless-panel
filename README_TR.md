@@ -62,9 +62,10 @@ Varsayılan ADC merkezleri dört eksen için 2048'dir; bunlar henüz fiziksel jo
 
 1. ETS2_WirelessPanel.ino dosyasında DEBUG_JOYSTICK_ADC değerini geçici olarak true yap ve firmware'i yükle.
 2. Arduino IDE Seri Monitör'ü **115200 baud** ile aç. Çubuklar bırakılmış ve normal merkez konumundayken JOY_ADC:değer1,değer2,değer3,değer4 satırlarını izle.
-3. Değerler sabitlenince dört sayıyı JOYSTICK_CENTER_ADC dizisine sırayla yaz. Sıra GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz'dir.
-4. Yönlerden biri Windows oyun kumandası ekranında ters görünüyorsa aynı sıradaki JOYSTICK_INVERTED girdisini true yap.
-5. DEBUG_JOYSTICK_ADC değerini false olarak geri alıp son firmware'i yükle.
+3. Değerler sabitlenince dört merkez sayısını JOYSTICK_CENTER_ADC dizisine sırayla yaz. Sıra GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz'dir.
+4. Her ekseni ayrı ayrı iki fiziksel sonuna götürüp JOY_ADC değerlerini kaydet. Gerekirse JOYSTICK_MIN_ADC ve JOYSTICK_MAX_ADC dizilerine ölçtüğün alt/üst değerleri gir; böylece çubuk tam hareket mesafesinde HID ekseninin tamamını kullanır. Varsayılan 0/4095 değerlerini kullanmak da mümkündür.
+5. Yönlerden biri Windows oyun kumandası ekranında ters görünüyorsa aynı sıradaki JOYSTICK_INVERTED girdisini true yap.
+6. DEBUG_JOYSTICK_ADC değerini false olarak geri alıp son firmware'i yükle.
 
 Başlangıç deadzone değerleri menü eksenlerinde 100/70, kamera eksenlerinde 170/130 ADC sayımıdır (etkinleştirme/bırakma). Kamera joystick'i direksiyon titreşiminden etkilenirse önce gerçek merkez değerlerini ölç; rastgele pin değiştirme veya çok büyük deadzone belirleme.
 
