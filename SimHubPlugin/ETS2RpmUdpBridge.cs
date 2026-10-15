@@ -77,6 +77,7 @@ namespace ETS2RpmUdpBridge
             Interlocked.Exchange(ref _lastSendMs, now);
 
             int rpm = 0;
+            int maxRpm = 3500;
             bool gameRunning = false;
             try
             {
@@ -87,6 +88,23 @@ namespace ETS2RpmUdpBridge
                     if (!Double.IsNaN(rawRpm) && !Double.IsInfinity(rawRpm))
                     {
                         rpm = (int)Math.Round(rawRpm);
+                    }
+
+                    // ETS2 vehicles have different redlines. Fall back to 3500 only
+                    // when SimHub does not provide a valid maximum RPM value.
+                    double rawMaxRpm = 0;
+                    try
+                    {
+                        rawMaxRpm = Convert.ToDouble(data.NewData.MaxRpm, CultureInfo.InvariantCulture);
+                    }
+                    catch
+                    {
+                        rawMaxRpm = 0;
+                    }
+
+                    if (!Double.IsNaN(rawMaxRpm) && !Double.IsInfinity(rawMaxRpm) && rawMaxRpm > 0)
+                    {
+                        maxRpm = (int)Math.Round(rawMaxRpm);
                     }
                 }
             }
@@ -99,9 +117,14 @@ namespace ETS2RpmUdpBridge
 
             if (rpm < 0) rpm = 0;
             if (rpm > 30000) rpm = 30000;
+            if (maxRpm < 1) maxRpm = 3500;
+            if (maxRpm > 30000) maxRpm = 30000;
 
-            // The Python BLE bridge accepts both "1234" and "RPM:1234".
-            byte[] payload = Encoding.ASCII.GetBytes("RPM:" + rpm.ToString(CultureInfo.InvariantCulture));
+            // Send both current and maximum RPM. The Python bridge converts this
+            // to its stable 0-3500 LED scale, so every vehicle can fill the bar.
+            byte[] payload = Encoding.ASCII.GetBytes(
+                "RPM:" + rpm.ToString(CultureInfo.InvariantCulture)
+                + ":" + maxRpm.ToString(CultureInfo.InvariantCulture));
             try
             {
                 _udp.Send(payload, payload.Length);
