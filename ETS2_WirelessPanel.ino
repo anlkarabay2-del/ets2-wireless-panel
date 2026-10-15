@@ -59,8 +59,8 @@ static const char *NUS_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
   if (axisIndex >= 4) return 0;
 
-  const int axisMin = constrain(JOYSTICK_MIN_ADC[axisIndex], 0, 4094);
-  const int axisMax = constrain(JOYSTICK_MAX_ADC[axisIndex], axisMin + 1, 4095);
+  const int axisMin = constrain(JOYSTICK_MIN_ADC[axisIndex], 0, 4093);
+  const int axisMax = constrain(JOYSTICK_MAX_ADC[axisIndex], axisMin + 2, 4095);
   const int center = constrain(JOYSTICK_CENTER_ADC[axisIndex], axisMin + 1, axisMax - 1);
   raw = constrain(raw, axisMin, axisMax);
 
