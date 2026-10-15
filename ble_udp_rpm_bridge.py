@@ -24,18 +24,43 @@ udp_ready = threading.Event()
 udp_start_error: Optional[OSError] = None
 
 
+LED_SCALE_MAX_RPM = 3500
+MAX_TELEMETRY_RPM = 30000
+
+
 def parse_rpm_datagram(data: bytes) -> Optional[int]:
-    """Parse a local UDP payload into RPM, returning None if it is invalid."""
+    """Parse RPM telemetry into the firmware's 0-3500 LED scale.
+
+    New SimHub packets use "RPM:<current>:<max>". That format is normalized
+    against each vehicle's max RPM so the full LED bar is reachable at redline.
+    Legacy integer packets and "RPM:<current>" packets keep their old absolute
+    RPM behavior for backwards compatibility.
+    """
     text = data.decode("ascii", errors="ignore").strip()
     if text.lower().startswith("rpm:"):
         text = text.split(":", 1)[1].strip()
 
+    parts = text.split(":")
     try:
-        rpm = int(float(text))
+        if len(parts) == 1:
+            # Legacy format: preserve the prior absolute-RPM behavior.
+            rpm = int(float(parts[0]))
+        elif len(parts) == 2:
+            current_rpm = int(float(parts[0]))
+            max_rpm = int(float(parts[1]))
+            if not 0 <= current_rpm <= MAX_TELEMETRY_RPM:
+                return None
+            if not 1 <= max_rpm <= MAX_TELEMETRY_RPM:
+                return None
+            # Integer rounding avoids float drift in the 0-3500 bar scale.
+            rpm = (current_rpm * LED_SCALE_MAX_RPM + max_rpm // 2) // max_rpm
+            rpm = min(rpm, LED_SCALE_MAX_RPM)
+        else:
+            return None
     except (ValueError, OverflowError):
         return None
 
-    if not 0 <= rpm <= 30000:
+    if not 0 <= rpm <= MAX_TELEMETRY_RPM:
         return None
     return rpm
 
