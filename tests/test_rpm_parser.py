@@ -22,6 +22,21 @@ class ParseRpmDatagramTests(unittest.TestCase):
     def test_preserves_legacy_numeric_decimal_behavior(self):
         self.assertEqual(parse_rpm_datagram(b"1420.9"), 1420)
 
+    def test_normalizes_to_full_led_bar_at_vehicle_redline(self):
+        self.assertEqual(parse_rpm_datagram(b"RPM:2200:2200"), 3500)
+
+    def test_normalizes_half_rpm_to_half_led_scale(self):
+        self.assertEqual(parse_rpm_datagram(b"RPM:1100:2200"), 1750)
+
+    def test_normalizes_idle_rpm_and_clamps_over_redline(self):
+        self.assertEqual(parse_rpm_datagram(b"RPM:0:2200"), 0)
+        self.assertEqual(parse_rpm_datagram(b"RPM:2500:2200"), 3500)
+
+    def test_rejects_invalid_maximum_rpm(self):
+        self.assertIsNone(parse_rpm_datagram(b"RPM:1000:0"))
+        self.assertIsNone(parse_rpm_datagram(b"RPM:1000:bad"))
+        self.assertIsNone(parse_rpm_datagram(b"RPM:1000:2200:extra"))
+
     def test_accepts_range_boundaries(self):
         self.assertEqual(parse_rpm_datagram(b"0"), 0)
         self.assertEqual(parse_rpm_datagram(b"30000"), 30000)
