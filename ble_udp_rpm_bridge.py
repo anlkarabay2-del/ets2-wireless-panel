@@ -36,7 +36,11 @@ def parse_rpm_datagram(data: bytes) -> Optional[int]:
     Legacy integer packets and "RPM:<current>" packets keep their old absolute
     RPM behavior for backwards compatibility.
     """
-    text = data.decode("ascii", errors="ignore").strip()
+    try:
+        text = data.decode("ascii").strip()
+    except UnicodeDecodeError:
+        return None
+
     if text.lower().startswith("rpm:"):
         text = text.split(":", 1)[1].strip()
 
