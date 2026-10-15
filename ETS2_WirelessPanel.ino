@@ -170,7 +170,9 @@ void setup() {
   BleGamepadConfiguration config;
   config.setAutoReport(false);
   config.setButtonCount(BUTTON_COUNT);
-  config.setWhichAxes(true, true, true, true, false, false, false, false);
+  // Windows maps Z to right-stick X and RZ to right-stick Y.
+  // RX is a trigger axis, so it must not be used for the camera stick.
+  config.setWhichAxes(true, true, true, false, false, true, false, false);
   bleGamepad.begin(&config);
 
   // Register NuS after NimBLE is initialized, then advertise both services.
@@ -187,7 +189,7 @@ void setup() {
   advertising->start();
 
   Serial.println("ETS2_PANEL_READY");
-  Serial.println("BLE HID: buttons + 4 axes; BLE NuS: send RPM number followed by newline.");
+  Serial.println("BLE HID: buttons + X/Y menu axes + Z/RZ camera axes; BLE NuS: send RPM number followed by newline.");
 }
 
 void loop() {
@@ -217,12 +219,12 @@ void loop() {
       if (stableButton[i]) bleGamepad.press(i + 1);
       else bleGamepad.release(i + 1);
     }
-    // HID axis order is X/Y (menu stick), then Z/RX (camera stick).
-    // The physical X/Y potentiometer wiring still needs to be confirmed on-device.
+    // HID axis order: X/Y (menu stick), Z/RZ (camera stick).
+    // The physical joystick-to-axis wiring still needs to be confirmed on-device.
     bleGamepad.setAxes(
       axisFromAdc(joystickValues[0], 0), axisFromAdc(joystickValues[1], 1),
-      axisFromAdc(joystickValues[2], 2), axisFromAdc(joystickValues[3], 3),
-      0, 0, 0, 0
+      axisFromAdc(joystickValues[2], 2), 0, 0, axisFromAdc(joystickValues[3], 3),
+      0, 0
     );
     bleGamepad.sendReport();
   }
