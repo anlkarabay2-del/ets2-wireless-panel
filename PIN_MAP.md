@@ -46,7 +46,7 @@ This is the **firmware pin assignment**, not yet a verified physical-board layou
 
 - Buttons are scanned every 2 ms with an 8 ms debounce.
 - Joystick ADC values use four-sample averaging. On the current optimization branch, sampling runs every 5 ms (200 Hz); BLE gamepad reports run every 10 ms (100 Hz).
-- ADC reads use 12-bit resolution (nominal range 0–4095). Center calibration and the final physical joystick-to-axis mapping still need to be tested on the assembled hardware.
+- ADC reads use 12-bit resolution (nominal range 0–4095). Firmware uses configurable per-axis centers (default 2048) and separate hysteresis deadzones: menu axes activate at 100 counts/release at 70; camera axes activate at 170/release at 130. These are conservative starting values, not measured hardware results. Adjust `JOYSTICK_CENTER_ADC` after measuring each assembled axis at rest. The first two ADC inputs map to HID X/Y (menu stick); the third and fourth map to HID Z/Rx (camera stick). Physical wiper-to-axis wiring and direction still require an assembled-device test.
 - RPM LEDs are currently scaled in firmware to a 0–3500 RPM range; confirm the desired ETS2 truck/vehicle behavior before final calibration.
 
 ## To verify when the parts arrive
