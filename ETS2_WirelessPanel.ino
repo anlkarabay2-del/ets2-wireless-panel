@@ -61,8 +61,9 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
   const int activate = JOYSTICK_ACTIVATE_COUNTS[axisIndex];
   const int release = JOYSTICK_RELEASE_COUNTS[axisIndex];
 
-  // Hysteresis prevents noise near the deadzone edge from rapidly toggling
-  // between neutral and active. Camera axes use a wider band than menu axes.
+  // Hysteresis gates activation at a wider threshold and releases at a
+  // narrower one. In the band between them, fade the output smoothly toward
+  // zero instead of snapping to zero or letting threshold noise flicker.
   if (!joystickAxisActive[axisIndex]) {
     if (distance <= activate) return 0;
     joystickAxisActive[axisIndex] = true;
@@ -73,9 +74,21 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
 
   const int direction = (delta > 0) ? 1 : -1;
   const int available = (direction > 0 ? 4095 - center : center) - activate;
-  if (available <= 0) return 0;
+  if (available <= 0) {
+    joystickAxisActive[axisIndex] = false;
+    return 0;
+  }
 
-  int32_t magnitude = ((int32_t)(distance - activate) * 32767L) / available;
+  int32_t magnitude = 0;
+  if (distance > activate) {
+    magnitude = ((int32_t)(distance - activate) * 32767L) / available;
+  } else {
+    // Continue a one-ADC-count-sized output smoothly through the release band.
+    // This makes the value at 'activate' match the first step above it.
+    const int32_t oneCount = max(1L, 32767L / available);
+    magnitude = ((int32_t)(distance - release) * oneCount)
+                / (activate - release);
+  }
   magnitude = constrain(magnitude, 0L, 32767L);
   int32_t signedValue = direction * magnitude;
   if (JOYSTICK_INVERTED[axisIndex]) signedValue = -signedValue;
