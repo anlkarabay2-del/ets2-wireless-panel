@@ -22,9 +22,15 @@ static int joystickValues[4] = {2048, 2048, 2048, 2048};
 
 // ADC centers are deliberately explicit rather than auto-calibrated at boot:
 // a stick held off-center during startup must not become the new neutral.
-// Measure each assembled axis and adjust these values if its resting ADC value
-// differs materially from 2048.
+// Enable DEBUG_JOYSTICK_ADC to measure resting values in the Serial Monitor.
 static const int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
+// Set an entry true if that physical axis moves in the wrong direction in Windows.
+static const bool JOYSTICK_INVERTED[4] = {false, false, false, false};
+// Temporarily set true to print averaged ADC readings every 250 ms.
+static const bool DEBUG_JOYSTICK_ADC = false;
+static const uint32_t JOYSTICK_DEBUG_MS = 250;
+static uint32_t lastJoystickDebug = 0;
+
 // Hysteresis thresholds in raw ADC counts. Axes 0-1 are the menu stick;
 // axes 2-3 are the camera stick, given a larger noise-rejection band.
 static const int JOYSTICK_ACTIVATE_COUNTS[4] = {100, 100, 170, 170};
@@ -71,7 +77,9 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
 
   int32_t magnitude = ((int32_t)(distance - activate) * 32767L) / available;
   magnitude = constrain(magnitude, 0L, 32767L);
-  return (int16_t)(direction * magnitude);
+  int32_t signedValue = direction * magnitude;
+  if (JOYSTICK_INVERTED[axisIndex]) signedValue = -signedValue;
+  return (int16_t)signedValue;
 }
 
 void updateRpmLeds(long rpm) {
@@ -201,6 +209,13 @@ void loop() {
   if ((uint32_t)(now - lastAnalogRead) >= ANALOG_SCAN_MS) {
     lastAnalogRead = now;
     readJoysticks();
+  }
+
+  if (DEBUG_JOYSTICK_ADC && (uint32_t)(now - lastJoystickDebug) >= JOYSTICK_DEBUG_MS) {
+    lastJoystickDebug = now;
+    Serial.printf("JOY_ADC:%d,%d,%d,%d\n",
+                  joystickValues[0], joystickValues[1],
+                  joystickValues[2], joystickValues[3]);
   }
 
   pollNuS();
