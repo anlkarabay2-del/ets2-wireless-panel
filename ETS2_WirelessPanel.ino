@@ -196,16 +196,15 @@ void setup() {
   config.setWhichAxes(true, true, true, false, false, true, false, false);
   bleGamepad.begin(&config);
 
-  // Register NuS after NimBLE is initialized, then advertise both services.
+  // Register NuS after NimBLE is initialized. Preserve the same local/GATT
+  // device name supplied to BleGamepad; adding a different scan name here
+  // makes Windows rename the device after connecting and can confuse pairing.
   while (NimBLEDevice::getServer() == nullptr) delay(10);
   NuSerial.start(false);
   NimBLEAdvertising *advertising = NimBLEDevice::getServer()->getAdvertising();
   advertising->enableScanResponse(true);
   if (!advertising->addServiceUUID(NUS_UUID)) {
     Serial.println("WARN: NuS UUID did not fit scan response; connect then discover services.");
-  }
-  if (!advertising->setName("ETS2-NuS")) {
-    Serial.println("WARN: short NuS scan name did not fit scan response.");
   }
   advertising->start();
 
