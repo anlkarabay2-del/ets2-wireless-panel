@@ -27,7 +27,7 @@ py -m pip install -r requirements.txt
 py .\ble_udp_rpm_bridge.py
 ~~~
 
-Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir RPM değerini gönderir. Python köprüsü paneli BLE reklamındaki NuS servis UUID'si veya tanınan cihaz adıyla bulur, RX karakteristiğinin desteklediği GATT yazma modunu kontrol eder ve RPM satırlarını iletir. NuS-NimBLE-Serial 4.2.1 RX karakteristiği yanıtlı yazmayı (write with response) kullanır.
+Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir mevcut RPM ile aracın maksimum RPM değerini gönderir. Python köprüsü bu ikiliyi 0–3500 aralığındaki LED bar ölçeğine dönüştürür; böylece farklı kırmızı çizgi devirlerine sahip ETS2 araçlarında bar üst devirde tam dolar. Eski tek değerli RPM paketleri de geriye dönük desteklenir. Python köprüsü paneli BLE reklamındaki NuS servis UUID'si veya tanınan cihaz adıyla bulur, RX karakteristiğinin desteklediği GATT yazma modunu kontrol eder ve bar değerini iletir.
 
 RPM ayrıştırma testlerini çalıştırmak için:
 
