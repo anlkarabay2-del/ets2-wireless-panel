@@ -1,6 +1,10 @@
 import unittest
 
-from ble_udp_rpm_bridge import effective_rpm, parse_rpm_datagram
+from ble_udp_rpm_bridge import (
+    effective_rpm,
+    is_panel_advertisement,
+    parse_rpm_datagram,
+)
 
 
 class ParseRpmDatagramTests(unittest.TestCase):
@@ -51,6 +55,44 @@ class EffectiveRpmTests(unittest.TestCase):
 
     def test_sample_at_timeout_boundary_is_still_fresh(self):
         self.assertEqual(effective_rpm(1420, 99.0, 100.0), 1420)
+
+
+class PanelAdvertisementTests(unittest.TestCase):
+    def test_matches_nus_service_uuid_without_name(self):
+        self.assertTrue(
+            is_panel_advertisement(
+                None,
+                None,
+                ["6E400001-B5A3-F393-E0A9-E50E24DCCA9E"],
+            )
+        )
+
+    def test_matches_advertised_local_name_when_windows_name_is_cached(self):
+        self.assertTrue(
+            is_panel_advertisement(
+                "Unknown cached name",
+                "ETS2-NuS",
+                [],
+            )
+        )
+
+    def test_matches_windows_device_name_when_local_name_is_missing(self):
+        self.assertTrue(
+            is_panel_advertisement(
+                "ETS2 Custom Wheel",
+                None,
+                None,
+            )
+        )
+
+    def test_does_not_match_unrelated_device(self):
+        self.assertFalse(
+            is_panel_advertisement(
+                "Bluetooth Speaker",
+                "BT-Speaker",
+                ["0000180F-0000-1000-8000-00805F9B34FB"],
+            )
+        )
 
 
 if __name__ == "__main__":
