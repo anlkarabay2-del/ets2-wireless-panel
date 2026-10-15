@@ -4,6 +4,7 @@ from ble_udp_rpm_bridge import (
     effective_rpm,
     is_panel_advertisement,
     parse_rpm_datagram,
+    write_response_mode,
 )
 
 
@@ -93,6 +94,24 @@ class PanelAdvertisementTests(unittest.TestCase):
                 ["0000180F-0000-1000-8000-00805F9B34FB"],
             )
         )
+
+
+class WriteResponseModeTests(unittest.TestCase):
+    def test_prefers_write_with_response(self):
+        self.assertIs(write_response_mode(["write"]), True)
+
+    def test_supports_write_without_response_only(self):
+        self.assertIs(write_response_mode(["write-without-response"]), False)
+
+    def test_prefers_response_when_both_modes_are_supported(self):
+        self.assertIs(
+            write_response_mode(["write", "write-without-response"]),
+            True,
+        )
+
+    def test_returns_none_when_no_write_property_is_supported(self):
+        self.assertIsNone(write_response_mode(["read", "notify"]))
+        self.assertIsNone(write_response_mode(None))
 
 
 if __name__ == "__main__":
