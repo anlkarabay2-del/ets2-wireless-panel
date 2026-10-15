@@ -23,7 +23,7 @@ This is the **firmware pin assignment**, not yet a verified physical-board layou
 | Joystick ADC 1 | HID X axis | GPIO 1 | First analog wiper; physical stick/axis assignment to confirm |
 | Joystick ADC 2 | HID Y axis | GPIO 2 | Second analog wiper; physical stick/axis assignment to confirm |
 | Joystick ADC 3 | HID Z axis | GPIO 3 | Third analog wiper; **boot-strapping pin—validate before final wiring** |
-| Joystick ADC 4 | HID Rx axis | GPIO 4 | Fourth analog wiper; physical stick/axis assignment to confirm |
+| Joystick ADC 4 | HID Rz axis | GPIO 4 | Fourth analog wiper; Windows maps Rz to right-stick Y |
 | RPM LED 1 | Lowest segment | GPIO 5 | LED + individual series resistor |
 | RPM LED 2 | Segment 2 | GPIO 38 | LED + individual series resistor |
 | RPM LED 3 | Segment 3 | GPIO 39 | LED + individual series resistor |
@@ -46,7 +46,8 @@ This is the **firmware pin assignment**, not yet a verified physical-board layou
 
 - Buttons are scanned every 2 ms with an 8 ms debounce.
 - Joystick ADC values use four-sample averaging. On the current optimization branch, sampling runs every 5 ms (200 Hz); BLE gamepad reports run every 10 ms (100 Hz).
-- ADC reads use 12-bit resolution (nominal range 0–4095). Firmware uses configurable per-axis centers (default 2048) and separate hysteresis deadzones: menu axes activate at 100 counts/release at 70; camera axes activate at 170/release at 130. These are conservative starting values, not measured hardware results. Adjust `JOYSTICK_CENTER_ADC` after measuring each assembled axis at rest. The first two ADC inputs map to HID X/Y (menu stick); the third and fourth map to HID Z/Rx (camera stick). Physical wiper-to-axis wiring and direction still require an assembled-device test.
+- ADC reads use 12-bit resolution (nominal range 0–4095). Firmware uses configurable per-axis centers (default 2048) and separate hysteresis deadzones: menu axes activate at 100 counts/release at 70; camera axes activate at 170/release at 130. These are conservative starting values, not measured hardware results. Adjust `JOYSTICK_CENTER_ADC` after measuring each assembled axis at rest.
+- HID axis mapping is X/Y for the menu stick and Z/Rz for the camera stick. In the ESP32 BLE Gamepad library's documented Windows mapping, Z is right-stick X and Rz is right-stick Y; Rx maps to a trigger, so it is intentionally not used for the camera stick.
 - RPM LEDs are currently scaled in firmware to a 0–3500 RPM range; confirm the desired ETS2 truck/vehicle behavior before final calibration.
 
 ## To verify when the parts arrive
