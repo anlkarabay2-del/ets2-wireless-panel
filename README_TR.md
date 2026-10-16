@@ -1,81 +1,57 @@
-# ETS2 Kablosuz ESP32-S3 Paneli — SimHub RPM eklentisi dahil
+# ETS2 Kablosuz ESP32-S3 Paneli
 
-Bu depo, SimHub'dan motor RPM bilgisini alıp ESP32-S3 panelinin LED'lerine göndermek için gereken yazılımı içerir.
+Bu projenin **aktif firmware'i BLE HID oyun kumandasıdır**: 15 dijital buton ve 4 analog joystick ekseni gönderir. Aktif firmware'de RPM telemetrisi, NuS seri servisi veya LED kontrolü bulunmaz.
 
-**Veri akışı:** ETS2 → SimHub eklentisi → yerel UDP (127.0.0.1:29100) → Python BLE köprüsü → ESP32-S3 üzerindeki NuS servisi → 9 RPM LED'i.
+**Aktif veri akışı:** fiziksel butonlar/joystick'ler → ESP32-S3 → Bluetooth Low Energy oyun kumandası → Windows / ETS2.
 
-İnternet çalışma sırasında gerekmez. USB, firmware yüklemek ve seri hata ayıklamak içindir; panel Windows'a Bluetooth Low Energy oyun kumandası olarak bağlanır.
+USB, firmware yüklemek ve seri hata ayıklamak içindir. Panel normal kullanımda Windows'a BLE oyun kumandası olarak bağlanır.
 
-## 1. SimHub eklentisini kur
+## 1. Firmware'i yükle
 
-1. SimHub'ı tamamen kapat.
-2. Depoyu normal bir klasöre indir veya ZIP olarak çıkar.
-3. **SimHubPlugin\Install-SimHubPlugin.bat** dosyasını çalıştır. Windows yönetici izni isterse ver.
-4. Betik, SimHub SDK DLL'lerini bulup C# eklentisini yerel bilgisayarında derler ve DLL'yi SimHub klasörüne kopyalar.
-5. SimHub'ı aç. Eklenti etkinleştirme isterse etkinleştir. Sol menüde **RPM UDP Bridge** sayfası ve gönderilen paket sayısı görünmelidir.
+Arduino IDE'de `ETS2_WirelessPanel.ino` dosyasını aç. ESP32 Arduino core **3.3.12** ve ESP32-BLE-Gamepad **0.8.0** sürümleri GitHub Actions derlemesinde kullanılan sürümlerdir. Doğru ESP32-S3 kartını seçip firmware'i yükle.
 
-Derleme için Windows .NET Framework C# derleyicisi ve kurulu SimHub DLL'leri gerekir. GitHub Actions bu dosyalara erişemediğinden **C# eklentisinin gerçek derlemesini doğrulamıyor**; yalnızca kaynak ve derleme betiğinin varlığını kontrol ediyor. ESP32 ve Python kontrollerinin yeşil olması fiziksel SimHub kurulumunun test edildiği anlamına gelmez.
+Seri Monitör'ü **115200 baud** ile açarsan başlangıçta `ETS2_PANEL_READY` mesajını görmelisin.
 
-Eklentiyi kaldırmak için SimHub'ı kapatıp **SimHubPlugin\Uninstall-SimHubPlugin.ps1** betiğini çalıştır. Betiğin oluşturduğu yedek DLL dosyalarını silmez.
+## 2. Buton ve joystick bağlantıları
 
-## 2. Python BLE köprüsünü çalıştır
+- **11 normal buton:** GPIO 6–16
+- **Joystick basma butonları:** GPIO 17 ve 18
+- **Vites kulakçıkları:** GPIO 5 ve 21
+- **Dört analog joystick ekseni:** GPIO 1, 2, 3 ve 4
 
-PowerShell'de depo klasörüne girip şunları çalıştır:
+Butonları GPIO ile **GND** arasına bağla. Firmware `INPUT_PULLUP` kullandığı için buton basılınca giriş LOW olur. GPIO'lara harici 5 V uygulama.
 
-~~~powershell
-py -m pip install -r requirements.txt
-py .\ble_udp_rpm_bridge.py
-~~~
+Joystick modüllerini **3.3 V** ve GND ile besle; potansiyometrelerin orta uçlarını ilgili ADC GPIO'larına bağla. ESP32-S3 ADC girişlerine 5 V verme.
 
-Köprü **127.0.0.1:29100** adresinde UDP paketi bekler. SimHub eklentisi yaklaşık her 50 ms'de bir mevcut RPM ile aracın maksimum RPM değerini gönderir. Python köprüsü bu ikiliyi 0–3500 aralığındaki LED bar ölçeğine dönüştürür; böylece farklı kırmızı çizgi devirlerine sahip ETS2 araçlarında bar üst devirde tam dolar. Eski tek değerli RPM paketleri de geriye dönük desteklenir. Python köprüsü paneli BLE reklamındaki NuS servis UUID'si veya tanınan cihaz adıyla bulur, RX karakteristiğinin desteklediği GATT yazma modunu kontrol eder ve bar değerini iletir.
+**Kablolamadan önce kartın gerçek pinlerini doğrula.** GPIO3 strapping pinidir; bağlı joystick'in reset sırasında pini uygunsuz seviyeye çekmediğini kontrol et. Kart revizyonuna ve flash/PSRAM varyantına göre kullanılabilir pinler değişebilir.
 
-RPM ayrıştırma testlerini çalıştırmak için:
+Ayrıntılı eşleme için [PIN_MAP.md](PIN_MAP.md) dosyasına bak.
 
-~~~powershell
-py -m unittest discover -s tests -v
-~~~
+## 3. Joystick merkezlerini kalibre et
 
-## 3. ESP32-S3 firmware'i
+Varsayılan ADC merkezleri dört eksen için 2048'dir; bunlar fiziksel joystick'lerinde ölçülmüş değerler değildir.
 
-**ETS2_WirelessPanel.ino**, ESP32-S3'ü Bluetooth oyun kumandası olarak çalıştırır ve aynı BLE sunucusuna NuS seri servisini ekler.
+1. `ETS2_WirelessPanel.ino` dosyasında `DEBUG_JOYSTICK_ADC` değerini geçici olarak `true` yap ve firmware'i yükle.
+2. Arduino IDE Seri Monitör'ü **115200 baud** ile aç.
+3. Çubuklar bırakılmış ve normal merkez konumundayken `JOY_ADC:değer1,değer2,değer3,değer4` satırlarını izle.
+4. Sabit merkez değerlerini `JOYSTICK_CENTER_ADC` dizisine yaz. Sıra GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz'dir.
+5. Her eksenin iki fiziksel sonundaki değerleri ölç. Gerekirse `JOYSTICK_MIN_ADC` ve `JOYSTICK_MAX_ADC` dizilerini ayarla.
+6. Bir eksenin yönü tersse aynı sıradaki `JOYSTICK_INVERTED` girdisini `true` yap.
+7. `DEBUG_JOYSTICK_ADC` değerini tekrar `false` yapıp firmware'i yükle.
 
-Firmware'in GitHub Actions derlemesinde doğrulanan bağımlılık sürümleri:
+Başlangıç deadzone değerleri menü eksenlerinde 100/70, kamera eksenlerinde 170/130 ADC sayımıdır (etkinleştirme/bırakma). Bunlar başlangıç değerleridir; fiziksel merkez gürültüsüne göre ayarlanmalıdır.
 
-- ESP32 Arduino core: **3.3.12**
-- ESP32-BLE-Gamepad: **0.8.0**
-- NimBLE-Arduino: **2.5.1**
-- NuS-NimBLE-Serial: **4.2.1**
+## 4. Windows ve ETS2 kontrolü
 
-Firmware, BLE üzerinden 14 dijital buton ve 4 analog joystick ekseni gönderir. NuS üzerinden aldığı geçerli RPM satırlarına göre 9 LED'i kademeli yakar. Bu işlevlerin fiziksel kartta ve oyunda çalıştığı henüz doğrulanmış değildir.
+1. Windows Bluetooth ayarlarından **ETS2 Custom Wheel** cihazını eşleştir.
+2. Windows'un oyun kumandası test ekranında 15 butonun ve dört eksenin göründüğünü doğrula.
+3. Menü joystick'inin X/Y, kamera joystick'inin Z/Rz eksenlerini kontrol et.
+4. ETS2 kontrol ayarlarında butonları ve eksenleri ata; ters yönde hareket eden eksenleri kalibrasyon dizisiyle düzelt.
 
-Mevcut pin eşlemesi:
+## Eski RPM bileşenleri hakkında
 
-- Butonlar: GPIO 6–18 ve GPIO 21 (toplam 14)
-- Joystick eksenleri: GPIO 1, 2, 3, 4
-- RPM LED'leri: GPIO 5, 38, 39, 40, 41, 42, 47, 48, 33
-
-**Kablolamadan önce kartın gerçek pinlerini doğrula.** GPIO3 strapping pinidir; joystick devresinin reset sırasında uygunsuz seviyeye çekmediğinden emin ol. Resmî ESP32-S3-DevKitC-1 v1.0 kartında yerleşik RGB LED GPIO48'e, v1.1'de GPIO38'e bağlıdır; pin listemiz bu iki pini de ayrı LED çıkışı olarak kullandığından, kartında hangisi yerleşik RGB LED ise o çıkış çakışır ve pin eşlemesi kart revizyonuna göre değiştirilmelidir. Octal SPI flash/PSRAM içeren bazı modüllerde GPIO35–37 harici kullanım için uygun değildir. Her ayrı LED'e seri akım sınırlama direnci koy (genellikle 220–330 Ω, LED türüne göre doğrula). **12 V LED şeridini doğrudan ESP32 GPIO'suna bağlama.**
-
-## 4. Joystick eksenlerini kalibre et
-
-Varsayılan ADC merkezleri dört eksen için 2048'dir; bunlar henüz fiziksel joystick'lerinde ölçülmüş değerler değildir.
-
-1. ETS2_WirelessPanel.ino dosyasında DEBUG_JOYSTICK_ADC değerini geçici olarak true yap ve firmware'i yükle.
-2. Arduino IDE Seri Monitör'ü **115200 baud** ile aç. Çubuklar bırakılmış ve normal merkez konumundayken JOY_ADC:değer1,değer2,değer3,değer4 satırlarını izle.
-3. Değerler sabitlenince dört merkez sayısını JOYSTICK_CENTER_ADC dizisine sırayla yaz. Sıra GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz'dir.
-4. Her ekseni ayrı ayrı iki fiziksel sonuna götürüp JOY_ADC değerlerini kaydet. Gerekirse JOYSTICK_MIN_ADC ve JOYSTICK_MAX_ADC dizilerine ölçtüğün alt/üst değerleri gir; böylece çubuk tam hareket mesafesinde HID ekseninin tamamını kullanır. Varsayılan 0/4095 değerlerini kullanmak da mümkündür.
-5. Yönlerden biri Windows oyun kumandası ekranında ters görünüyorsa aynı sıradaki JOYSTICK_INVERTED girdisini true yap.
-6. DEBUG_JOYSTICK_ADC değerini false olarak geri alıp son firmware'i yükle.
-
-Başlangıç deadzone değerleri menü eksenlerinde 100/70, kamera eksenlerinde 170/130 ADC sayımıdır (etkinleştirme/bırakma). Kamera joystick'i direksiyon titreşiminden etkilenirse önce gerçek merkez değerlerini ölç; rastgele pin değiştirme veya çok büyük deadzone belirleme.
-
-## 5. Hızlı kontrol
-
-- SimHub eklentisindeki paket sayısı artıyorsa SimHub → UDP gönderimi gerçekleşiyordur.
-- Python penceresinde UDP dinleme adresi gösterilmelidir.
-- Panel bulunduğunda Python penceresinde BLE cihaz adı ve bağlantı durumu görünmelidir.
-- Paket sayısı artarken LED'ler yanmıyorsa önce NuS BLE bağlantısını, doğru karakteristiği ve ESP32 kablolamasını kontrol et.
+Depoda `ble_udp_rpm_bridge.py`, `SimHubPlugin/` ve RPM ayrıştırma testleri de bulunur. Bunlar eski RPM/LED prototipinden kalmıştır ve **aktif HID-only firmware ile çalışmaz**; mevcut panel kullanımında bu köprüyü veya SimHub RPM eklentisini başlatman gerekmez. RPM/LED işlevi yeniden eklenirse firmware, köprü ve kurulum yönergeleri birlikte güncellenmelidir.
 
 ## Test sınırı
 
-GitHub Actions'ta son başarılı çalışmada Python testleri ve ESP32-S3 firmware derlemesi geçti. Bu otomatik kontroller donanım testinin yerine geçmez. SimHub eklentisinin C# derlemesi, Windows'taki yerel SimHub DLL'leriyle ayrıca doğrulanmalıdır.
+GitHub Actions firmware derlemesini ve Python testlerini otomatik kontrol eder. Bu, fiziksel joystick merkezlerinin, buton kablolamasının, Windows Bluetooth eşleşmesinin veya ETS2 içindeki eksen yönlerinin donanım üzerinde doğrulandığı anlamına gelmez.
