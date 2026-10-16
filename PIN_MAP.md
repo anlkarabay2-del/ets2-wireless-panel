@@ -1,6 +1,6 @@
 # ESP32-S3 Wireless Panel — Pin Map
 
-This table describes the **current firmware assignment**, not a verified physical-board layout. Confirm the labels printed on the exact ESP32-S3 board before wiring.
+This table describes the current firmware assignment, not a verified physical-board layout. Confirm the labels printed on the exact ESP32-S3 board before wiring.
 
 ## GPIO assignment
 
@@ -42,7 +42,6 @@ This table describes the **current firmware assignment**, not a verified physica
 - **Calibrate endpoints:** move each axis to both physical ends and record the readings. If the stick does not reach ADC values near 0 and 4095, update `JOYSTICK_MIN_ADC` and `JOYSTICK_MAX_ADC` to the measured endpoints.
 - **Reverse an axis:** set the matching `JOYSTICK_INVERTED` entry to `true`. Array order: GPIO 1/X, GPIO 2/Y, GPIO 3/Z, GPIO 4/Rz.
 - HID mapping is X/Y for the menu stick and Z/Rz for the camera stick. Verify the actual Windows game-controller display and ETS2 bindings; physical axis orientation has not been tested.
-- The current firmware is **BLE HID only**: 15 buttons and four analog axes. It does not implement NuS serial, RPM telemetry, or RPM LEDs. The legacy RPM bridge/plugin files in the repository are not used by this firmware.
 
 ## To verify on the assembled hardware
 
