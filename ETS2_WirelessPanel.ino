@@ -1,12 +1,13 @@
 #include <Arduino.h>
 #include <BleGamepad.h>
 
-// BLE HID only: 8 buttons + 4 analog joystick axes.
+// BLE HID only: 11 regular buttons + 2 joystick-click buttons + 4 analog axes.
 // RPM telemetry, NuS serial, and LED code have been removed.
 
-static const uint8_t BUTTON_COUNT = 8;
+static const uint8_t BUTTON_COUNT = 13;
+// Buttons 1-11: GPIO 6-16. Joystick push-buttons: GPIO 17 and 18.
 static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
-  6, 7, 8, 9, 10, 11, 12, 13
+  6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
 };
 static const uint8_t JOYSTICK_PINS[4] = {1, 2, 3, 4};
 
@@ -131,7 +132,7 @@ void setup() {
   bleGamepad.begin(&config);
 
   Serial.println("ETS2_PANEL_READY");
-  Serial.println("BLE HID: 8 buttons + X/Y menu axes + Z/RZ camera axes");
+  Serial.println("BLE HID: 13 buttons (11 + 2 stick clicks) + X/Y menu axes + Z/RZ camera axes");
 }
 
 void loop() {
