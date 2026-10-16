@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <BleGamepad.h>
 
-// BLE HID only: 11 regular buttons + 2 joystick-click buttons + 2 paddle shifters.
-// Total: 15 buttons + 4 analog axes. RPM telemetry, NuS serial, and LED code removed.
+// BLE HID gamepad: 15 digital buttons and 4 analog axes.
 
 static const uint8_t BUTTON_COUNT = 15;
 // Regular buttons 1-11: GPIO 6-16.
