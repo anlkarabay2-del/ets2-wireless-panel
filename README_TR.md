@@ -1,14 +1,21 @@
 # ETS2 Kablosuz ESP32-S3 Paneli
 
-Bu projenin **aktif firmware'i BLE HID oyun kumandasıdır**: 15 dijital buton ve 4 analog joystick ekseni gönderir. Aktif firmware'de RPM telemetrisi, NuS seri servisi veya LED kontrolü bulunmaz.
+Bu proje, ESP32-S3 tabanlı kablosuz bir oyun kumandasıdır. Aktif firmware **Bluetooth Low Energy (BLE) HID** üzerinden 15 dijital buton ve 4 analog joystick ekseni gönderir.
 
-**Aktif veri akışı:** fiziksel butonlar/joystick'ler → ESP32-S3 → Bluetooth Low Energy oyun kumandası → Windows / ETS2.
+## Özellikler
 
-USB, firmware yüklemek ve seri hata ayıklamak içindir. Panel normal kullanımda Windows'a BLE oyun kumandası olarak bağlanır.
+- 15 dijital buton
+- 4 analog joystick ekseni
+- Butonlar için debounce
+- Joystick ADC okumalarında ortalama filtreleme
+- Eksen başına merkez ve uç nokta kalibrasyonu
+- Merkez çevresinde histerezisli deadzone
+- Eksen yönünü yazılımdan ters çevirme
+- İsteğe bağlı ham ADC tanılama çıktısı
 
 ## 1. Firmware'i yükle
 
-Arduino IDE'de `ETS2_WirelessPanel.ino` dosyasını aç. ESP32 Arduino core **3.3.12** ve ESP32-BLE-Gamepad **0.8.0** sürümleri GitHub Actions derlemesinde kullanılan sürümlerdir. Doğru ESP32-S3 kartını seçip firmware'i yükle.
+Arduino IDE'de `ETS2_WirelessPanel.ino` dosyasını aç. GitHub Actions derlemesinde kullanılan sürümler ESP32 Arduino core **3.3.12**, NimBLE-Arduino **2.5.1** ve ESP32-BLE-Gamepad **0.8.0** sürümleridir. Doğru ESP32-S3 kartını seçip firmware'i yükle.
 
 Seri Monitör'ü **115200 baud** ile açarsan başlangıçta `ETS2_PANEL_READY` mesajını görmelisin.
 
@@ -48,10 +55,6 @@ Başlangıç deadzone değerleri menü eksenlerinde 100/70, kamera eksenlerinde 
 3. Menü joystick'inin X/Y, kamera joystick'inin Z/Rz eksenlerini kontrol et.
 4. ETS2 kontrol ayarlarında butonları ve eksenleri ata; ters yönde hareket eden eksenleri kalibrasyon dizisiyle düzelt.
 
-## Eski RPM bileşenleri hakkında
-
-Depoda `ble_udp_rpm_bridge.py`, `SimHubPlugin/` ve RPM ayrıştırma testleri de bulunur. Bunlar eski RPM/LED prototipinden kalmıştır ve **aktif HID-only firmware ile çalışmaz**; mevcut panel kullanımında bu köprüyü veya SimHub RPM eklentisini başlatman gerekmez. RPM/LED işlevi yeniden eklenirse firmware, köprü ve kurulum yönergeleri birlikte güncellenmelidir.
-
 ## Test sınırı
 
-GitHub Actions firmware derlemesini ve Python testlerini otomatik kontrol eder. Bu, fiziksel joystick merkezlerinin, buton kablolamasının, Windows Bluetooth eşleşmesinin veya ETS2 içindeki eksen yönlerinin donanım üzerinde doğrulandığı anlamına gelmez.
+GitHub Actions firmware derlemesini otomatik kontrol eder. Bu, fiziksel joystick merkezlerinin, buton kablolamasının, Windows Bluetooth eşleşmesinin veya ETS2 içindeki eksen yönlerinin donanım üzerinde doğrulandığı anlamına gelmez.
