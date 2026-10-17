@@ -1,4 +1,4 @@
-name: Validate ETS2 wireless panel
+name: Validate ESP32-S3 wireless panel
 
 on:
   push:
@@ -9,19 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  python-check:
-    name: Python bridge tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.x'
-      - name: Check Python syntax
-        run: python -m py_compile ble_udp_rpm_bridge.py tests/test_rpm_parser.py
-      - name: Run RPM parser tests
-        run: python -m unittest discover -s tests -v
-
   arduino-check:
     name: ESP32-S3 Arduino compile
     runs-on: ubuntu-latest
@@ -36,7 +23,6 @@ jobs:
           arduino-cli lib update-index
           arduino-cli lib install 'NimBLE-Arduino@2.5.1'
           arduino-cli lib install 'ESP32-BLE-Gamepad@0.8.0'
-          arduino-cli lib install 'NuS-NimBLE-Serial@4.2.1'
       - name: Compile ESP32 sketch
         shell: bash
         run: |
@@ -48,37 +34,3 @@ jobs:
           mkdir -p /tmp/ETS2_WirelessPanel
           cp "$sketch" /tmp/ETS2_WirelessPanel/ETS2_WirelessPanel.ino
           arduino-cli compile --fqbn esp32:esp32:esp32s3 /tmp/ETS2_WirelessPanel
-
-  windows-simhub-check:
-    name: SimHub plugin build availability check
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Check PowerShell scripts parse
-        shell: pwsh
-        run: |
-          $scripts = @(
-            'SimHubPlugin/Build-Install.ps1',
-            'SimHubPlugin/Uninstall-SimHubPlugin.ps1'
-          )
-          foreach ($path in $scripts) {
-            $tokens = $null
-            $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $path), [ref]$tokens, [ref]$errors) | Out-Null
-            if ($errors.Count -gt 0) {
-              throw ("PowerShell syntax error in {0}: {1}" -f $path, ($errors | Out-String))
-            }
-            Write-Host "PowerShell syntax OK: $path"
-          }
-      - name: Check plugin source and build script exist
-        shell: pwsh
-        run: |
-          $cs = Get-ChildItem -Recurse -Filter ETS2RpmUdpBridge.cs | Select-Object -First 1
-          $ps = Get-ChildItem -Recurse -Filter Build-Install.ps1 | Select-Object -First 1
-          if (-not $cs -or -not $ps) {
-            Write-Host 'SimHub plugin source/build script not present; no plugin validation is possible.'
-            exit 1
-          }
-          Write-Host "Found C# source: $($cs.FullName)"
-          Write-Host "Found build script: $($ps.FullName)"
-          Write-Host 'Full C# compilation requires the SimHub installation DLLs; this check only verifies the local build inputs.'
