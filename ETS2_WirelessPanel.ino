@@ -12,7 +12,8 @@ static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
 };
 static const uint8_t JOYSTICK_PINS[4] = {2, 1, 3, 4};
 
-BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, false);
+// v2 changes the BLE identity so Windows rebuilds the cached HID axis descriptor.
+BleGamepad bleGamepad("ETS2 Custom Wheel v2", "DIY", 100, false);
 
 static bool stableButton[BUTTON_COUNT] = {false};
 static bool lastRawButton[BUTTON_COUNT] = {false};
@@ -33,9 +34,9 @@ static const uint32_t JOYSTICK_DEBUG_MS = 250;
 static uint32_t lastJoystickDebug = 0;
 
 // Axes 0-1 are the menu stick; axes 2-3 are the camera stick.
-// Smaller deadzone makes short joystick travel visible; release threshold adds hysteresis.
-static const int JOYSTICK_ACTIVATE_COUNTS[4] = {70, 70, 70, 70};
-static const int JOYSTICK_RELEASE_COUNTS[4] = {40, 40, 40, 40};
+// Small deadzone preserves short travel; release threshold adds minimal hysteresis.
+static const int JOYSTICK_ACTIVATE_COUNTS[4] = {12, 12, 12, 12};
+static const int JOYSTICK_RELEASE_COUNTS[4] = {6, 6, 6, 6};
 static bool joystickAxisActive[4] = {false, false, false, false};
 
 static uint32_t lastInputRead = 0;
