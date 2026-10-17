@@ -12,7 +12,7 @@ static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
 };
 static const uint8_t JOYSTICK_PINS[4] = {1, 2, 3, 4};
 
-BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, true);
+BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, false);
 
 static bool stableButton[BUTTON_COUNT] = {false};
 static bool lastRawButton[BUTTON_COUNT] = {false};
