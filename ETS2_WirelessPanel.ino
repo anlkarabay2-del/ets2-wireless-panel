@@ -19,9 +19,9 @@ static bool lastRawButton[BUTTON_COUNT] = {false};
 static uint32_t rawChangedAt[BUTTON_COUNT] = {0};
 static int joystickValues[4] = {2048, 2048, 2048, 2048};
 
-// Tune these centers after checking the resting ADC values in Serial Monitor.
-// Do not auto-calibrate at startup: a stick held off-center could become neutral.
-static const int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
+// Calibrated at startup: leave both sticks untouched and centered while powering on.
+// This avoids a fixed 2048 center masking movement on an offset ADC signal.
+static int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
 // Optional endpoint calibration; defaults use the full 12-bit ADC range.
 static const int JOYSTICK_MIN_ADC[4] = {0, 0, 0, 0};
 static const int JOYSTICK_MAX_ADC[4] = {4095, 4095, 4095, 4095};
@@ -33,8 +33,9 @@ static const uint32_t JOYSTICK_DEBUG_MS = 250;
 static uint32_t lastJoystickDebug = 0;
 
 // Axes 0-1 are the menu stick; axes 2-3 are the camera stick.
-static const int JOYSTICK_ACTIVATE_COUNTS[4] = {100, 100, 170, 170};
-static const int JOYSTICK_RELEASE_COUNTS[4] = {70, 70, 130, 130};
+// Smaller deadzone makes short joystick travel visible; release threshold adds hysteresis.
+static const int JOYSTICK_ACTIVATE_COUNTS[4] = {70, 70, 70, 70};
+static const int JOYSTICK_RELEASE_COUNTS[4] = {40, 40, 40, 40};
 static bool joystickAxisActive[4] = {false, false, false, false};
 
 static uint32_t lastInputRead = 0;
@@ -100,6 +101,21 @@ static void readButtons(uint32_t now) {
   }
 }
 
+static void calibrateJoystickCenters() {
+  // Keep both sticks centered during startup. Average 32 readings per axis.
+  uint32_t sums[4] = {0, 0, 0, 0};
+  for (uint8_t sample = 0; sample < 32; sample++) {
+    for (uint8_t i = 0; i < 4; i++) sums[i] += analogRead(JOYSTICK_PINS[i]);
+    delay(5);
+  }
+  for (uint8_t i = 0; i < 4; i++) {
+    JOYSTICK_CENTER_ADC[i] = (int)(sums[i] / 32);
+  }
+  Serial.printf("JOY_CENTER:%d,%d,%d,%d\\n",
+                JOYSTICK_CENTER_ADC[0], JOYSTICK_CENTER_ADC[1],
+                JOYSTICK_CENTER_ADC[2], JOYSTICK_CENTER_ADC[3]);
+}
+
 static void readJoysticks() {
   // Four-sample averaging reduces ADC noise without slowing button scans.
   for (uint8_t i = 0; i < 4; i++) {
@@ -115,6 +131,7 @@ void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
+  calibrateJoystickCenters();
 
   for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
     pinMode(BUTTON_PINS[i], INPUT_PULLUP);
