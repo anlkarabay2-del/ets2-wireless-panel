@@ -102,15 +102,35 @@ static void readButtons(uint32_t now) {
   }
 }
 
+// ESP32-S3 ADC multiplexing can produce a stale first conversion after
+// switching pins. Discard it, then use the median to reject isolated spikes.
+static int readAnalogMedian(uint8_t pin) {
+  (void)analogRead(pin);
+  int samples[9];
+  for (uint8_t i = 0; i < 9; i++) samples[i] = analogRead(pin);
+
+  for (uint8_t i = 1; i < 9; i++) {
+    const int value = samples[i];
+    int j = i - 1;
+    while (j >= 0 && samples[j] > value) {
+      samples[j + 1] = samples[j];
+      j--;
+    }
+    samples[j + 1] = value;
+  }
+  return samples[4];
+}
+
 static void calibrateJoystickCenters() {
-  // Keep both sticks centered during startup. Average 32 readings per axis.
+  // Keep both sticks centered during startup; average filtered median readings.
   uint32_t sums[4] = {0, 0, 0, 0};
-  for (uint8_t sample = 0; sample < 32; sample++) {
-    for (uint8_t i = 0; i < 4; i++) sums[i] += analogRead(JOYSTICK_PINS[i]);
-    delay(5);
+  for (uint8_t sample = 0; sample < 16; sample++) {
+    for (uint8_t i = 0; i < 4; i++) sums[i] += readAnalogMedian(JOYSTICK_PINS[i]);
+    delay(3);
   }
   for (uint8_t i = 0; i < 4; i++) {
-    JOYSTICK_CENTER_ADC[i] = (int)(sums[i] / 32);
+    JOYSTICK_CENTER_ADC[i] = (int)(sums[i] / 16);
+    joystickValues[i] = JOYSTICK_CENTER_ADC[i];
   }
   Serial.printf("JOY_CENTER:%d,%d,%d,%d\n",
                 JOYSTICK_CENTER_ADC[0], JOYSTICK_CENTER_ADC[1],
@@ -118,13 +138,10 @@ static void calibrateJoystickCenters() {
 }
 
 static void readJoysticks() {
-  // Four-sample averaging reduces ADC noise without slowing button scans.
+  // Median rejects spikes; a 1/4 IIR low-pass suppresses remaining jitter.
   for (uint8_t i = 0; i < 4; i++) {
-    uint32_t sum = 0;
-    for (uint8_t n = 0; n < 4; n++) {
-      sum += analogRead(JOYSTICK_PINS[i]);
-    }
-    joystickValues[i] = (int)(sum / 4);
+    const int raw = readAnalogMedian(JOYSTICK_PINS[i]);
+    joystickValues[i] += (raw - joystickValues[i]) / 4;
   }
 }
 
