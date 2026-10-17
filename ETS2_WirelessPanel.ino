@@ -28,7 +28,7 @@ static const int JOYSTICK_MAX_ADC[4] = {4095, 4095, 4095, 4095};
 static const bool JOYSTICK_INVERTED[4] = {false, true, false, false};
 
 // Set true temporarily to print the four raw ADC readings every 250 ms.
-static const bool DEBUG_JOYSTICK_ADC = false;
+static const bool DEBUG_JOYSTICK_ADC = true;
 static const uint32_t JOYSTICK_DEBUG_MS = 250;
 static uint32_t lastJoystickDebug = 0;
 
