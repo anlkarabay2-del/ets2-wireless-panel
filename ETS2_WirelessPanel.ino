@@ -138,7 +138,7 @@ void setup() {
   config.setIncludeRzAxis(true);
   config.setIncludeSlider1(false);
   config.setIncludeSlider2(false);
-  Serial.printf("HID_AXES: X=%d Y=%d Z=%d RZ=%d\\n",
+  Serial.printf("HID_AXES: X=%d Y=%d Z=%d RZ=%d\n",
                 config.getIncludeXAxis(), config.getIncludeYAxis(),
                 config.getIncludeZAxis(), config.getIncludeRzAxis());
   bleGamepad.begin(&config);
