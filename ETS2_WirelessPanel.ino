@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <BleGamepad.h>
 
-// BLE HID gamepad: 15 physical buttons; no joystick axes or potentiometer.
+// BLE HID gamepad with 15 physical buttons.
 
 static const uint8_t PHYSICAL_BUTTON_COUNT = 15;
 static const uint8_t GAMEPAD_BUTTON_COUNT = 15;
@@ -59,7 +59,7 @@ void setup() {
   bleGamepad.begin(&config);
 
   Serial.println("ETS2_PANEL_READY");
-  Serial.println("BLE HID: 15 physical buttons; joystick axes and potentiometer disabled");
+  Serial.println("BLE HID: 15 physical buttons");
 }
 
 void loop() {
