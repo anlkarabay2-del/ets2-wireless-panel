@@ -10,7 +10,7 @@ static const uint8_t BUTTON_COUNT = 15;
 static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
   6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 5, 21
 };
-static const uint8_t JOYSTICK_PINS[4] = {1, 2, 3, 4};
+static const uint8_t JOYSTICK_PINS[4] = {2, 1, 3, 4};
 
 BleGamepad bleGamepad("ETS2 Custom Wheel", "DIY", 100, false);
 
@@ -25,7 +25,7 @@ static const int JOYSTICK_CENTER_ADC[4] = {2048, 2048, 2048, 2048};
 // Optional endpoint calibration; defaults use the full 12-bit ADC range.
 static const int JOYSTICK_MIN_ADC[4] = {0, 0, 0, 0};
 static const int JOYSTICK_MAX_ADC[4] = {4095, 4095, 4095, 4095};
-static const bool JOYSTICK_INVERTED[4] = {false, false, false, false};
+static const bool JOYSTICK_INVERTED[4] = {false, true, false, false};
 
 // Set true temporarily to print the four raw ADC readings every 250 ms.
 static const bool DEBUG_JOYSTICK_ADC = false;
