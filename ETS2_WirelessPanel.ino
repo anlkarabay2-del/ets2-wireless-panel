@@ -10,7 +10,7 @@ static const uint8_t BUTTON_COUNT = 15;
 static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
   38, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 47, 21
 };
-static const uint8_t JOYSTICK_PINS[4] = {3, 4, 6, 5};
+static const uint8_t JOYSTICK_PINS[4] = {2, 1, 6, 5};
 
 // v2 changes the BLE identity so Windows rebuilds the cached HID axis descriptor.
 BleGamepad bleGamepad("ETS2 Custom Wheel v2", "DIY", 100, false);
