@@ -127,9 +127,20 @@ void setup() {
   BleGamepadConfiguration config;
   config.setAutoReport(false);
   config.setButtonCount(BUTTON_COUNT);
-  // HID axes: X/Y = menu stick; Z/RZ = camera stick.
-  // RX is a trigger axis and is intentionally unused.
-  config.setWhichAxes(true, true, true, false, false, true, false, false);
+  // Explicit HID axis selection: X/Y = menu stick; Z/RZ = camera stick.
+  // RX, RY and sliders are intentionally disabled.
+  // Individual setters avoid relying on setWhichAxes() argument ordering.
+  config.setIncludeXAxis(true);
+  config.setIncludeYAxis(true);
+  config.setIncludeZAxis(true);
+  config.setIncludeRxAxis(false);
+  config.setIncludeRyAxis(false);
+  config.setIncludeRzAxis(true);
+  config.setIncludeSlider1(false);
+  config.setIncludeSlider2(false);
+  Serial.printf("HID_AXES: X=%d Y=%d Z=%d RZ=%d\\n",
+                config.getIncludeXAxis(), config.getIncludeYAxis(),
+                config.getIncludeZAxis(), config.getIncludeRzAxis());
   bleGamepad.begin(&config);
 
   Serial.println("ETS2_PANEL_READY");
