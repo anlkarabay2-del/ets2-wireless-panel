@@ -4,13 +4,13 @@
 // BLE HID gamepad: 15 digital buttons and 4 analog axes.
 
 static const uint8_t BUTTON_COUNT = 15;
-// Regular buttons 1-11: GPIO 6-16.
+// Regular buttons 1-11: GPIO 38, then GPIO 7-16. GPIO 6 is now an analog axis.
 // Joystick push-buttons: GPIO 17 and 18.
 // Paddle shifters: GPIO 5 and 21.
 static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
-  6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 5, 21
+  38, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 5, 21
 };
-static const uint8_t JOYSTICK_PINS[4] = {2, 1, 3, 4};
+static const uint8_t JOYSTICK_PINS[4] = {2, 1, 6, 4};
 
 // v2 changes the BLE identity so Windows rebuilds the cached HID axis descriptor.
 BleGamepad bleGamepad("ETS2 Custom Wheel v2", "DIY", 100, false);
