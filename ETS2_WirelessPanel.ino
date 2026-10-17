@@ -73,12 +73,12 @@ static int16_t axisFromAdc(int raw, uint8_t axisIndex) {
     return 0;
   }
 
-  int32_t magnitude;
+  // Hysteresis controls when an axis activates/releases, but output remains
+  // zero inside the activation deadzone. This avoids a full-scale jump at
+  // exactly the activation threshold and a sudden drop immediately beyond it.
+  int32_t magnitude = 0;
   if (distance > activate) {
     magnitude = ((int32_t)(distance - activate) * 32767L) / available;
-  } else {
-    // Fade the output smoothly through the hysteresis band near center.
-    magnitude = ((int32_t)(distance - release) * 32767L) / (activate - release);
   }
   magnitude = constrain(magnitude, 0L, 32767L);
 
