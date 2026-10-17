@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <BleGamepad.h>
 
-// BLE HID gamepad: 15 digital buttons and 4 analog axes.
+// BLE HID gamepad: 15 physical buttons, 2 virtual cruise buttons, and 2 joystick axes.
 
 static const uint8_t BUTTON_COUNT = 15;
 // Regular buttons 1-11: GPIO 38, then GPIO 7-16. GPIO 6 is now an analog axis.
@@ -13,7 +13,7 @@ static const uint8_t BUTTON_PINS[BUTTON_COUNT] = {
 static const uint8_t JOYSTICK_PINS[4] = {2, 1, 3, 4};
 
 // v2 changes the BLE identity so Windows rebuilds the cached HID axis descriptor.
-BleGamepad bleGamepad("ETS2 Custom Wheel v2", "DIY", 100, false);
+BleGamepad bleGamepad("ETS2 Custom Wheel v3", "DIY", 100, false);
 
 static bool stableButton[BUTTON_COUNT] = {false};
 static bool lastRawButton[BUTTON_COUNT] = {false};
@@ -28,12 +28,12 @@ static const int JOYSTICK_MIN_ADC[4] = {0, 0, 0, 0};
 static const int JOYSTICK_MAX_ADC[4] = {4095, 4095, 4095, 4095};
 static const bool JOYSTICK_INVERTED[4] = {false, true, false, false};
 
-// Set true temporarily to print the four raw ADC readings every 250 ms.
+// Set true to print joystick and cruise-pot ADC readings every 250 ms.
 static const bool DEBUG_JOYSTICK_ADC = true;
 static const uint32_t JOYSTICK_DEBUG_MS = 250;
 static uint32_t lastJoystickDebug = 0;
 
-// Axes 0-1 are the menu stick; axes 2-3 are the camera stick.
+// The remaining joystick controls menu navigation on X/Y.
 // Small deadzone preserves short travel; release threshold adds minimal hysteresis.
 static const int JOYSTICK_ACTIVATE_COUNTS[4] = {12, 12, 12, 12};
 static const int JOYSTICK_RELEASE_COUNTS[4] = {6, 6, 6, 6};
@@ -149,6 +149,7 @@ void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
+  pinMode(CRUISE_POT_PIN, INPUT);
   calibrateJoystickCenters();
 
   for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
@@ -162,8 +163,7 @@ void setup() {
   BleGamepadConfiguration config;
   config.setAutoReport(false);
   config.setButtonCount(BUTTON_COUNT);
-  // Explicit HID axis selection: X/Y = menu stick; Z/RZ = camera stick.
-  // RX, RY and sliders are intentionally disabled.
+  // Explicit HID axis selection: X/Y = menu stick. Remaining axes are disabled.
   // Individual setters avoid relying on setWhichAxes() argument ordering.
   config.setIncludeXAxis(true);
   config.setIncludeYAxis(true);
