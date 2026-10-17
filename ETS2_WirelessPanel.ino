@@ -111,7 +111,7 @@ static void calibrateJoystickCenters() {
   for (uint8_t i = 0; i < 4; i++) {
     JOYSTICK_CENTER_ADC[i] = (int)(sums[i] / 32);
   }
-  Serial.printf("JOY_CENTER:%d,%d,%d,%d\\n",
+  Serial.printf("JOY_CENTER:%d,%d,%d,%d\n",
                 JOYSTICK_CENTER_ADC[0], JOYSTICK_CENTER_ADC[1],
                 JOYSTICK_CENTER_ADC[2], JOYSTICK_CENTER_ADC[3]);
 }
