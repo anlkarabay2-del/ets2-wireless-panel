@@ -28,9 +28,7 @@ void setup() {
   BleGamepadConfiguration config;
   config.setControllerType(CONTROLLER_TYPE_GAMEPAD);
   config.setAutoReport(true);
-  // Intentionally leave setButtonCount() at the library default (16).
-  // A recent upstream issue reports BLE setup/visibility problems when
-  // setButtonCount() is used in some library versions. We only use buttons 1-13.
+  config.setButtonCount(BUTTON_COUNT);
   config.setHatSwitchCount(0);
   config.setWhichAxes(false, false, false, false, false, false, false, false);
   config.setWhichSimulationControls(false, false, false, false, false);
@@ -44,6 +42,7 @@ void loop() {
   const bool connected = bleGamepad.isConnected();
 
   if (connected && !wasConnected) {
+    // Synchronize the HID state with buttons that are already held at connect time.
     bleGamepad.resetButtons();
     for (uint8_t i = 0; i < BUTTON_COUNT; ++i) {
       const bool pressed = (digitalRead(BUTTON_PINS[i]) == LOW);
