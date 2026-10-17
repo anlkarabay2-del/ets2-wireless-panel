@@ -27,11 +27,33 @@ class FirmwareContractTests(unittest.TestCase):
         self.assertRegex(SOURCE, r"config\.setButtonCount\(BUTTON_COUNT\)")
         self.assertRegex(SOURCE, r"bleGamepad\.press\(i\s*\+\s*1\)")
         self.assertRegex(SOURCE, r"bleGamepad\.release\(i\s*\+\s*1\)")
+        self.assertIn("config.setAutoReport(true)", SOURCE)
 
-    def test_debounce_is_positive(self):
+    def test_analog_controls_are_disabled(self):
+        self.assertIn("config.setWhichAxes(false, false, false, false, false, false, false, false)", SOURCE)
+        self.assertIn("config.setWhichSimulationControls(false, false, false, false, false)", SOURCE)
+        self.assertIn("config.setHatSwitchCount(0)", SOURCE)
+
+    def test_debounce_is_positive_and_state_change_is_gated(self):
         debounce = re.search(r"DEBOUNCE_MS\s*=\s*(\d+)", SOURCE)
         self.assertIsNotNone(debounce, "DEBOUNCE_MS declaration missing")
         self.assertGreater(int(debounce.group(1)), 0)
+        self.assertRegex(
+            SOURCE,
+            r"rawPressed\s*!=\s*stablePressed\[i\]\s*&&\s*\(uint32_t\)\(now\s*-\s*rawChangedAt\[i\]\)\s*>=\s*DEBOUNCE_MS",
+        )
+
+    def test_connection_restores_current_physical_button_state(self):
+        self.assertIn("if (connected != previousConnection)", SOURCE)
+        self.assertIn("if (connected) {", SOURCE)
+        self.assertIn("bleGamepad.resetButtons();", SOURCE)
+        self.assertIn("const bool pressed = digitalRead(BUTTON_PINS[i]) == LOW;", SOURCE)
+        self.assertIn("rawChangedAt[i] = now;", SOURCE)
+
+    def test_hid_reports_only_when_connected(self):
+        self.assertRegex(SOURCE, r"if \(connected\)\s*\{\s*if \(rawPressed\)")
+        self.assertIn("bleGamepad.press(i + 1);", SOURCE)
+        self.assertIn("bleGamepad.release(i + 1);", SOURCE)
 
 
 if __name__ == "__main__":
